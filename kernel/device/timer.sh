@@ -1,0 +1,1 @@
+gcc -m32 -I ../include -c timer.c -o ../lib/timer.o -fno-stack-protector

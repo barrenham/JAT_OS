@@ -1,0 +1,21 @@
+{
+    "files.associations": {
+        "stdint.h": "c",
+        "debug.h": "c",
+        "string.h": "c",
+        "print.h": "c",
+        "interrupt.h": "c",
+        "global.h": "c",
+        "memory.h": "c",
+        "bitmap.h": "c",
+        "bool.h": "c",
+        "thread.h": "c",
+        "list.h": "c",
+        "keyboard.h": "c",
+        "console.h": "c",
+        "cstring": "c",
+        "ioqueue.h": "c",
+        "init.h": "c",
+        "process.h": "c"
+    }
+}

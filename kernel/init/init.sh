@@ -1,0 +1,1 @@
+gcc -c -m32 init.c -o ../lib/init.o  -fno-stack-protector
