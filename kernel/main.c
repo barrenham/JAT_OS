@@ -22,12 +22,12 @@ int main(void) {
    init_all();
    thread_start("kernel_thread_a",31,test_thread1,"argA: ");
    thread_start("kernel_thread_b",31,test_thread2,"argB: ");
-   //process_execute(u_prog_a,"user_prog_a");
-   //process_execute(u_prog_b,"user_prog_b");
+   process_execute(u_prog_a,"user_prog_a");
+   process_execute(u_prog_b,"user_prog_b");
    intr_enable();
    
    while(1){
-        console_put_char('h');
+        
    }
    return 0;
 }

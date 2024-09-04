@@ -1255,7 +1255,7 @@ speaker: enabled=1, mode=sound
 # The maximum amount of memory supported is 2048Mb.
 # The 'MEGS' option is deprecated. Use 'MEMORY' option instead.
 #=======================================================================
-megs: 1024
+megs: 256
 #megs: 128
 #megs: 64
 #megs: 32

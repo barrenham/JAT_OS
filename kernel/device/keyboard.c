@@ -179,5 +179,5 @@ void keyboard_init(){
     put_string("keyboard init start\n");
     ioqueue_init(&kbd_buf);
     register_handler(0x21,intr_keyboard_handler);
-    put_string("keyboard init done");
+    put_string("keyboard init done\n");
 }

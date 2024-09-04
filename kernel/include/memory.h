@@ -29,7 +29,9 @@ void* get_a_page(int pf,uint32_t vaddr);
 
 uint32_t addr_v2p(uint32_t vaddr);
 
+uint32_t* pte_ptr(uint32_t vaddr);
 
+uint32_t* pde_ptr(uint32_t vaddr);
 
 #define PG_P_1          1
 #define PG_P_0          0

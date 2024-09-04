@@ -70,6 +70,7 @@ struct task_struct* thread_start(char* name,
                                  thread_func function,
                                  void* func_arg)
 {
+    enum intr_status old_status=intr_disable();
     struct task_struct* thread=get_kernel_pages(1);
     init_thread(thread,name,prio);
     thread_create(thread,function,func_arg);
@@ -77,6 +78,7 @@ struct task_struct* thread_start(char* name,
     list_append(&thread_ready_list,&thread->general_tag);
     ASSERT(!elem_find(&thread_all_list,&thread->all_list_tag));
     list_append(&thread_all_list,&thread->all_list_tag);
+    intr_set_status(old_status);
 }
 
 static void make_main_thread(void){
@@ -106,7 +108,7 @@ void schedule(){
     ASSERT(!elem_find(&thread_ready_list,thread_tag));
     struct task_struct*next=elem2entry(struct task_struct,general_tag,thread_tag);
     next->status=TASK_RUNNING;
-    //process_activate(next);
+    process_activate(next);
     switch_to(cur,next);
 }
 
@@ -135,5 +137,6 @@ void thread_init(void){
     list_init(&thread_ready_list);
     list_init(&thread_all_list);
     make_main_thread();
+    put_int(&thread_ready_list);
     put_string("thread_init done\n");
 }

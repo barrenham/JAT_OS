@@ -20,5 +20,5 @@ init_all    (void)
     timer_init();
     keyboard_init();
     console_init();
-    //tss_init();
+    tss_init();
 }

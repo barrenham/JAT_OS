@@ -28,7 +28,6 @@ intr%1entry:
 
     push    %1
     call    [idt_table + %1*4]
-    add     esp,            4
 
     jmp     intr_exit
 
@@ -39,6 +38,7 @@ section     .data
 section     .text
 global  intr_exit
 intr_exit:
+    add     esp,            4
     popad
     pop     gs
     pop     fs

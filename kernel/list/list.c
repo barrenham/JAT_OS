@@ -60,8 +60,9 @@ bool
 elem_find(struct list* plist,
           struct list_elem*obj_elem)
 {
+    //put_string("elem_find begin\n");
     struct list_elem* elem=plist->head.next;
-    while(elem!=&plist->tail){
+    while(elem!=NULL){
         if(elem==obj_elem){
             return True;
         }
@@ -79,7 +80,7 @@ list_traversal(struct list*plist,
     if(list_empty(plist)){
         return NULL;
     }
-    while(elem!=&plist->tail){
+    while(elem!=NULL){
         if(func(elem,arg)){
             return elem;
         }

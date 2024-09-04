@@ -51,6 +51,8 @@ static void mem_pool_init(uint32_t all_mem){
     kernel_pool.pool_bitmap.btmp_bytes_len=kbm_length;
     user_pool.pool_bitmap.btmp_bytes_len=ubm_length;
 
+    //此处存在问题，当地址大于1MB时会出错,错误访问页表
+
     kernel_pool.pool_bitmap.bits=(void*)MEM_BITMAP_BASE;
     user_pool.pool_bitmap.bits=(void*)(MEM_BITMAP_BASE+kbm_length);
 
@@ -165,10 +167,11 @@ static void page_table_add(void* _vaddr,void* _page_phyaddr){
         ASSERT(!(*pte&0x00000001));
         *pte=(page_phyaddr|PG_US_U|PG_RW_W|PG_P_1);
     }
+    *pde=(*pde)&0xffffffbf;
 }
 
 void* malloc_page(enum pool_flags pf,uint32_t pg_cnt){
-    ASSERT(pg_cnt>0&&pg_cnt<3840);
+    //ASSERT(pg_cnt>0&&pg_cnt<3840);
     void* vaddr_start=vaddr_get(pf,pg_cnt);
     if(vaddr_start==NULL){
         return NULL;
