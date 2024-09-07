@@ -39,8 +39,8 @@ lib/tss.o:userprog/tss.c
 lib/process.o:userprog/process.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector
 
-
-
+lib/syscall.o:interrupt/syscall.c
+	gcc -m32 -c interrupt/syscall.c -I include -o lib/syscall.o -fno-stack-protector
 
 
 
@@ -69,7 +69,7 @@ all:
 	gcc -m32 -c device/ioqueue.c -I include -o lib/ioqueue.o -fno-stack-protector
 	gcc -m32 -c userprog/tss.c -I include -o lib/tss.o -fno-stack-protector
 	gcc -m32 -c userprog/process.c -I include -o lib/process.o -fno-stack-protector
-
+	gcc -m32 -c interrupt/syscall.c -I include -o lib/syscall.o -fno-stack-protector
 
 
 install:

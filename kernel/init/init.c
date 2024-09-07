@@ -7,6 +7,7 @@
 #include "../include/console.h"
 #include "../include/keyboard.h"
 #include "../include/process.h"
+#include "../include/syscall.h"
 
 extern void tss_init();
 
@@ -21,4 +22,5 @@ init_all    (void)
     keyboard_init();
     console_init();
     tss_init();
+    syscall_init();
 }

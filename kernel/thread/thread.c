@@ -7,11 +7,13 @@
 #include "../include/interrupt.h"
 #include "../include/debug.h"
 #include "../include/process.h"
+#include "../include/sync.h"
 
 struct task_struct* main_thread;
 struct list thread_ready_list;
 struct list thread_all_list;
 
+struct lock pid_lock;
 static struct list_elem* thread_tag;
 
 extern void switch_to(struct task_struct* cur,struct task_struct* next);
@@ -22,6 +24,13 @@ struct task_struct* running_thread(){
     return (struct task_struct*)(esp&0xfffff000);
 }
 
+static pid_t allocate_pid(void){
+    static pid_t next_pid=0;
+    lock_acquire(&pid_lock);
+    next_pid++;
+    lock_release(&pid_lock);
+    return next_pid;
+}
 
 static void kernel_thread(thread_func* function,void* func_arg){
     intr_enable();
@@ -49,6 +58,7 @@ init_thread(struct task_struct* pthread,
             int prio)
 {
     memset(pthread,0,sizeof(*pthread));
+    pthread->pid=allocate_pid();
     strcpy(pthread->name,name);
     if(pthread==main_thread){
         pthread->status=TASK_RUNNING;
@@ -136,7 +146,8 @@ void thread_init(void){
     put_string("thread_init start\n");
     list_init(&thread_ready_list);
     list_init(&thread_all_list);
+    lock_init(&pid_lock);
     make_main_thread();
-    put_int(&thread_ready_list);
     put_string("thread_init done\n");
 }
+

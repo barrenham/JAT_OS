@@ -16,6 +16,7 @@
         "cstring": "c",
         "ioqueue.h": "c",
         "init.h": "c",
-        "process.h": "c"
+        "process.h": "c",
+        "syscall.h": "c"
     }
 }

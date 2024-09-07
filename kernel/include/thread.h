@@ -8,7 +8,7 @@
 #define default_prio 20
 
 typedef void thread_func(void*);
-
+typedef int16_t  pid_t;
 
 enum task_status{
     TASK_RUNNING,
@@ -58,6 +58,7 @@ struct thread_stack{
 
 struct task_struct{
     uint32_t*               self_kstack;
+    pid_t                   pid;
     enum    task_status     status;
     uint8_t                 priority;
     uint32_t                ticks;
