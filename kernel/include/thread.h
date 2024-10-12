@@ -6,6 +6,7 @@
 
 #define PG_SIZE 4096
 #define default_prio 20
+#define MAX_FILES_OPEN_PER_PROC 8
 
 typedef void thread_func(void*);
 typedef int16_t  pid_t;
@@ -68,6 +69,8 @@ struct task_struct{
     char                    name[16];
     uint32_t*               pgdir;
     struct virtual_addr     userprog_vaddr;
+    struct mem_block_desc   u_block_desc[DESC_CNT];
+    int32_t                 fd_table[MAX_FILES_OPEN_PER_PROC];
     uint32_t                stack_magic;
 };
 
@@ -97,5 +100,7 @@ struct task_struct* thread_start(char* name,
                                  int prio,
                                  thread_func function,
                                  void* func_arg);
+
+void thread_yield(void);
 
 #endif

@@ -3,6 +3,7 @@
 
 #include "stdint.h"
 #include "bitmap.h"
+#include "list.h"
 
 enum pool_flags
 {
@@ -10,6 +11,17 @@ enum pool_flags
     PF_USER=2
 };
 
+struct mem_block{
+    struct list_elem free_elem;
+};
+
+struct mem_block_desc{
+    uint32_t block_size;
+    uint32_t blocks_per_arena;
+    struct list free_list;
+};
+
+#define DESC_CNT    7
 
 struct virtual_addr{
     struct bitmap vaddr_bitmap;
@@ -32,6 +44,16 @@ uint32_t addr_v2p(uint32_t vaddr);
 uint32_t* pte_ptr(uint32_t vaddr);
 
 uint32_t* pde_ptr(uint32_t vaddr);
+
+void block_desc_init(struct mem_block_desc* desc_array);
+
+void* sys_malloc(uint32_t size);
+
+void pfree(uint32_t pg_phy_addr);
+
+void mfree_page(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt);
+
+void sys_free(void* ptr);
 
 #define PG_P_1          1
 #define PG_P_0          0

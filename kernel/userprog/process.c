@@ -104,6 +104,7 @@ void process_execute(void* filename,char* name){
     create_user_vaddr_bitmap(thread);
     thread_create(thread,start_process,filename);
     thread->pgdir=create_page_dir();
+    block_desc_init(thread->u_block_desc);
     //put_int(&thread_ready_list);
     struct list_elem* elem=thread_ready_list.head.next;
     ASSERT(!elem_find(&thread_ready_list,&thread->general_tag));

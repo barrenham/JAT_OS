@@ -33,8 +33,8 @@ pic_init        (void)
     outb(PIC_M_DATA,    0xfe);
     outb(PIC_S_DATA,    0xff);
 
-    outb(PIC_M_DATA,    0xfc);
-    outb(PIC_S_DATA,    0xff);
+    outb(PIC_M_DATA,    0xf8);
+    outb(PIC_S_DATA,    0xbf);
 
     put_string("   pic_init done\n");
 }
@@ -57,18 +57,18 @@ intr_handler idt_table[IDT_DESC_CNT];
 static void 
 general_intr_handler(uint8_t vec_nr)
 {
+    
     if(vec_nr== 0x27 || vec_nr == 0x2f){
         return;
     }
     set_cursor(0);
     int cursor_pos=0;
-    while(cursor_pos<2000){
+    while(cursor_pos<2000){ 
         put_char(' ');
         cursor_pos++;
     }
     set_cursor(0);
     put_string("!!! exception message begin !!!\n");
-    set_cursor(168);
     put_string(intr_name[vec_nr]);
     if(vec_nr==14){
         int page_fault_vaddr=0;
@@ -77,6 +77,7 @@ general_intr_handler(uint8_t vec_nr)
         put_int(page_fault_vaddr);
     }
     put_string("\n!!! exception message end !!!\n");
+    
     while(1);
 }
 

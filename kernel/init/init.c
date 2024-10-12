@@ -8,6 +8,8 @@
 #include "../include/keyboard.h"
 #include "../include/process.h"
 #include "../include/syscall.h"
+#include "../include/ide.h"
+#include "../include/fs.h"
 
 extern void tss_init();
 
@@ -23,4 +25,6 @@ init_all    (void)
     console_init();
     tss_init();
     syscall_init();
+    ide_init();
+    filesys_init();
 }

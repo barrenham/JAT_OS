@@ -9,9 +9,11 @@
 #define COUNTER_MODE        2
 #define READ_WRITE_LATCH    3
 #define PIT_CONTROL_PORT    0x43
+#define mil_seconds_per_intr (1000/IRQ0_FREQUENCY)
 
 #include "stdint.h"
 #include "interrupt.h"
 void timer_init();
+void mtime_sleep(uint32_t m_seconds);
 
 #endif

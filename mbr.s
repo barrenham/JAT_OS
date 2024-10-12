@@ -6,8 +6,19 @@ SECTION MBR vstart=07c00h
     mov ss,     ax
     mov fs,     ax
 
-    ;mov dx,     0h
-    ;call displayHelloWorld
+    mov dx,     0h
+
+    mov cx,     100
+s:  push cx
+    call displayMessage
+    add dx,     10
+    cmp dl,     80
+    jne dl_ok
+    add dh,     1
+    xor dl,     dl
+dl_ok:
+    pop cx
+    loop s
 
     mov eax,    LOADER_START_SECTOR
     mov bx,     LOADER_BASE_ADDR
@@ -19,18 +30,25 @@ SECTION MBR vstart=07c00h
 
     ;mov dx,     00200h
     ;call displayLoader
-
+    ;jmp $
     jmp LOADER_BASE_ADDR
 
-    jmp $
-displayHelloWorld:
+    ;jmp $
+;displayMessage
+;input:         dx(DH:行 DL:列)
+;output:        
+;impact:        在指定位置显示字符串
+displayMessage:
     mov ax,     Message
     mov bp,     ax
-    mov cx,     29
+    mov cx,     10
     mov ax,     01301h
     mov bx,     000ch
     int 10h
     ret
+Message:
+    db "MaSiCheng"
+times 8 db 0
 displayLoader:
     mov ax,     LOADER_BASE_ADDR
     mov bp,     ax
@@ -103,8 +121,6 @@ rd_disk_mem:
     mov cx,     di
     ret
 
-Message:
-    db "hello world!!! --author: msc"
 times 510-($-$$) db 0
     dw 0aa55h
 

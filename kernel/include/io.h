@@ -38,4 +38,6 @@ insw(uint16_t port,
                 :"d"(port)
                 :"memory");
 }
+
+
 #endif

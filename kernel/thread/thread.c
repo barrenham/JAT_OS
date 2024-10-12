@@ -15,6 +15,8 @@ struct list thread_all_list;
 
 struct lock pid_lock;
 static struct list_elem* thread_tag;
+struct task_struct* idle_thread;
+
 
 extern void switch_to(struct task_struct* cur,struct task_struct* next);
 
@@ -22,6 +24,13 @@ struct task_struct* running_thread(){
     uint32_t esp;
     asm volatile("mov %%esp,%0":"=g"(esp));
     return (struct task_struct*)(esp&0xfffff000);
+}
+
+static void idle(void* arg UNUSED){
+    while(1){
+        thread_block(TASK_BLOCKED);
+        asm volatile("sti;hlt": : :"memory");
+    }
 }
 
 static pid_t allocate_pid(void){
@@ -72,6 +81,14 @@ init_thread(struct task_struct* pthread,
     pthread->userprog_vaddr=tmp;
     pthread->priority=prio;
     pthread->self_kstack=(uint32_t*)((uint32_t)pthread+PG_SIZE);
+    pthread->fd_table[0]=0;
+    pthread->fd_table[1]=1;
+    pthread->fd_table[2]=2;
+    uint8_t fd_idx=3;
+    while(fd_idx<MAX_FILES_OPEN_PER_PROC){
+        pthread->fd_table[fd_idx]=-1;
+        fd_idx++;
+    }
     pthread->stack_magic=0x20240825;
 }
 
@@ -89,6 +106,7 @@ struct task_struct* thread_start(char* name,
     ASSERT(!elem_find(&thread_all_list,&thread->all_list_tag));
     list_append(&thread_all_list,&thread->all_list_tag);
     intr_set_status(old_status);
+    return thread;
 }
 
 static void make_main_thread(void){
@@ -112,7 +130,9 @@ void schedule(){
         /*之后处理，不在就绪队列中*/
     }
 
-    ASSERT(!list_empty(&thread_ready_list));
+    if(list_empty(&thread_ready_list)){
+        thread_unblock(idle_thread);
+    }
     thread_tag=NULL;
     thread_tag=list_pop(&thread_ready_list);
     ASSERT(!elem_find(&thread_ready_list,thread_tag));
@@ -148,6 +168,17 @@ void thread_init(void){
     list_init(&thread_all_list);
     lock_init(&pid_lock);
     make_main_thread();
+    idle_thread=thread_start("idle",10,idle,NULL);
+    ASSERT(idle_thread!=NULL);
     put_string("thread_init done\n");
 }
 
+void thread_yield(void){
+    struct task_struct* cur=running_thread();
+    enum intr_status old_status=intr_disable();
+    ASSERT(!elem_find(&thread_ready_list,&cur->general_tag));
+    list_append(&thread_ready_list,&cur->general_tag);
+    cur->status=TASK_READY;
+    schedule();
+    intr_set_status(old_status);
+}

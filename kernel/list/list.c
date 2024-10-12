@@ -78,9 +78,10 @@ list_traversal(struct list*plist,
 {
     struct list_elem* elem=plist->head.next;
     if(list_empty(plist)){
+        put_string("Oops");
         return NULL;
     }
-    while(elem!=NULL){
+    while(elem->next!=NULL){
         if(func(elem,arg)){
             return elem;
         }
@@ -100,5 +101,5 @@ uint32_t list_len(struct list* plist){
 }
 
 bool list_empty(struct list* plist){
-    return (plist->head.next==&plist->tail?True:False);
+    return (plist->head.next->next==NULL?True:False);
 }

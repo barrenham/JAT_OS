@@ -17,6 +17,15 @@
         "ioqueue.h": "c",
         "init.h": "c",
         "process.h": "c",
-        "syscall.h": "c"
+        "syscall.h": "c",
+        "stdio.h": "c",
+        "timer.h": "c",
+        "ide.h": "c",
+        "io.h": "c",
+        "inode.h": "c",
+        "fs.h": "c",
+        "file.h": "c",
+        "stdio-kernel.h": "c",
+        "super_block.h": "c"
     }
 }
