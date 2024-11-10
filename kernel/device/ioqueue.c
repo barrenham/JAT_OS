@@ -12,7 +12,7 @@ void ioqueue_init(struct ioqueue* ioq){
 }
 
 static int32_t next_pos(int32_t pos){
-    return (pos+1)%bufsize;
+    return (pos+1)%__bufsize;
 }
 
 bool ioq_full(struct ioqueue*ioq){

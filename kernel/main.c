@@ -12,28 +12,40 @@
 #include "include/keyboard.h"
 #include "include/process.h"
 #include "include/syscall.h"
+#include "include/fs.h"
 
 void k_thread_a(void* );
 void k_thread_b(void* );
 void u_prog_a (void);
 void u_prog_b (void);
+void u_prog_c (void);
+
+void serveProcess(void);
+                                          
 
 int main(void) {
 	put_string("I am kernel\n");
 	init_all();
 	intr_enable();
-	/*
+	char* buf=(char*)sys_malloc(0x200);
+	int fd0=sys_open("/welcome.txt",O_RDWR);
+	int cnt=0;
+	console_put_char('\n');
+	printf("hello hello hello\n",NULL);
+	uint32_t ptr=0;
+	uint32_t read_cnt=0;
+	while((read_cnt=sys_read(fd0,buf,ptr,0x200))!=-1){
+		ptr+=read_cnt;
+		for(int i=0;i<(read_cnt);i++){
+			printf("%c",buf[i],NULL);
+		}
+	}
+	free(buf);
+	process_execute(u_prog_c, "test_write_file");
 	process_execute(u_prog_b, "u_prog_b"); 
 	thread_start("k_thread_a", 31, k_thread_a, "argA ");
 	thread_start("k_thread_b", 31, k_thread_b, "argB ");  
 	process_execute(u_prog_a, "u_prog_a");
-	int i=0;
-	while(1){
-			console_put_int(i);
-			console_put_string(" Main\n");
-			i++;
-	}
-	*/
 	void* addr1=malloc_page(PF_KERNEL,2);
 	void* addr2=malloc_page(PF_KERNEL,1);
 	console_put_string(" ADDR1 malloc addr:0x");
@@ -42,7 +54,13 @@ int main(void) {
 	console_put_int(addr2);
 	mfree_page(PF_KERNEL,addr1,2);
 	mfree_page(PF_KERNEL,addr2,1);
-	while(1);
+	printf("\n",NULL);
+	sys_close(fd0);
+	while(1){
+		printf("I'm thread main\n",NULL);
+		int cpu_delay = 10000000;
+		while(cpu_delay-->0);
+	}
 	return 0;
 }
 
@@ -63,7 +81,11 @@ void k_thread_a(void* arg){
 	sys_free(addr1);
 	sys_free(addr2);
 	sys_free(addr3);
-	while(1);
+	while(1){
+		printf("I'm thread 1\n",NULL);
+		int cpu_delay = 10000000;
+		while(cpu_delay-->0);
+	}
 }
 
 void k_thread_b(void* arg){
@@ -83,7 +105,11 @@ void k_thread_b(void* arg){
 	sys_free(addr1);
 	sys_free(addr2);
 	sys_free(addr3);
-	while(1);
+	while(1){
+		printf("I'm thread 2\n",NULL);
+		int cpu_delay = 10000000;
+		while(cpu_delay-->0);
+	}
 }
 
 void u_prog_a(void) {
@@ -97,7 +123,11 @@ void u_prog_a(void) {
 	free(addr1);
 	free(addr2);
 	free(addr3);
-	while(1);
+	while(1){
+		printf("I'm program 1\n",NULL);
+		int cpu_delay = 10000000;
+		while(cpu_delay-->0);
+	}
 }
 
 void u_prog_b(void) {
@@ -110,5 +140,24 @@ void u_prog_b(void) {
 	free(addr1);
 	free(addr2);
 	free(addr3);
+	while(1){
+		printf("I'm program 2\n",NULL);
+		int cpu_delay = 10000000;
+		while(cpu_delay-->0);
+	}
+}
+
+void u_prog_c(void){
+	printf("I'm test_write_file\n",NULL);
+	int32_t fd=openFile("/hello.txt",O_RDWR);
+	for(int i=0;i<10;i++){
+		write(fd,"ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",60);
+		printf("%d  ",i);
+	}
+	seekp(fd,0,SEEK_SET);
+	char buf[60];
+	while(read(fd,buf,60)>=0){
+		printf("%s",buf,NULL);
+	}
 	while(1);
 }

@@ -6,6 +6,7 @@
 #include "../include/stdio.h"
 #include "../include/syscall.h"
 #include "../include/string.h"
+#include "../include/fs.h"
 
 
 static void itoa(uint32_t value,char** buf_ptr_addr,uint8_t base){
@@ -69,7 +70,7 @@ uint32_t printf(const char* format,...){
     char buf[1024]={0};
     vsprintf(buf,format,args);
     va_end(args);
-    return write(buf);
+    return write(stdout_no,buf,strlen(buf));
 }
 
 uint32_t sprintf(char* buf,const char* format,...){

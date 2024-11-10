@@ -6,10 +6,10 @@
 extern      idt_table
 extern      put_string
 
+global      intr_entry_table
+
 section     .data
     intr_str    db      "interrupt occur!", 0xa,    0
-
-global      intr_entry_table
 intr_entry_table:
 
 %macro     VECTOR       2
@@ -104,6 +104,7 @@ extern syscall_table
 section .text
 global  syscall_handler
 syscall_handler:
+    sti
     push    0
     push    ds
     push    es
@@ -112,14 +113,17 @@ syscall_handler:
     pushad
 
     push    0x80
-
     push    edx
     push    ecx
     push    ebx
+
+    
 
     call    [syscall_table+eax*4]
     add     esp,    12
 
     mov     [esp+8*4],  eax
+
+    cli
     jmp     intr_exit
     

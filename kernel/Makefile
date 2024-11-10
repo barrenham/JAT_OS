@@ -55,6 +55,14 @@ lib/ide.o: device/ide.c
 lib/fs.o: fs/fs.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 
+lib/dir.o: fs/dir.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
+
+lib/file.o: fs/file.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
+
+lib/inode.o: fs/inode.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 
 all:
 	gcc -I include -m32 -c -o main.o main.c  -fno-stack-protector -nostdlib -nostdinc
@@ -79,7 +87,9 @@ all:
 	gcc -m32 -c standard/stdio-kernel.c -I include -o lib/stdio-kernel.o -fno-stack-protector -nostdlib -nostdinc
 	gcc -m32 -c device/ide.c  -I include -o lib/ide.o -fno-stack-protector -nostdlib -nostdinc
 	gcc -m32 -c fs/fs.c -I include -o lib/fs.o -fno-stack-protector -nostdlib -nostdinc
-
+	gcc -m32 -c  fs/dir.c -I include -o lib/dir.o -fno-stack-protector -nostdlib -nostdinc
+	gcc -m32 -c fs/file.c -I include -o lib/file.o -fno-stack-protector -nostdlib -nostdinc
+	gcc -m32 -c fs/inode.c -I include -o lib/inode.o -fno-stack-protector -nostdlib -nostdinc
 
 install:
 	dd if=kernel.bin of=../hd60M.img bs=512 count=200 seek=9 conv=notrunc

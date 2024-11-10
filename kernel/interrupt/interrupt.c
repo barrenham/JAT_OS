@@ -30,7 +30,7 @@ pic_init        (void)
     outb(PIC_S_DATA,    0X02);
     outb(PIC_S_DATA,    0x01);
 
-    outb(PIC_M_DATA,    0xfe);
+    outb(PIC_M_DATA,    0xfc);
     outb(PIC_S_DATA,    0xff);
 
     outb(PIC_M_DATA,    0xf8);
@@ -142,8 +142,8 @@ idt_init        (void)
     idt_desc_init();
     exception_init();
     pic_init();
-
-    uint64_t    idt_operand=((sizeof(idt)-1)|(uint64_t)((uint32_t)idt<<16));
+    put_int(idt);
+    uint64_t    idt_operand=((sizeof(idt)-1)|(uint64_t)((uint64_t)idt<<16));
     asm volatile("lidt %0"
                 :
                 :"m"(idt_operand));

@@ -10,6 +10,7 @@
 #include "../include/syscall.h"
 #include "../include/ide.h"
 #include "../include/fs.h"
+#include "../include/dir.h"
 
 extern void tss_init();
 

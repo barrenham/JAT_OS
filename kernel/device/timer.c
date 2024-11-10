@@ -25,7 +25,6 @@ static void intr_timer_handler(void){
     ASSERT(cur_thread->stack_magic==0x20240825);
     cur_thread->elapsed_ticks++;
     ticks++;
-
     if(cur_thread->ticks==0){
         schedule();
     }else{

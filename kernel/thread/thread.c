@@ -127,15 +127,16 @@ void schedule(){
         cur->ticks=cur->priority;
     
     }else{
-        /*之后处理，不在就绪队列中*/
+        if(cur->status==TASK_BLOCKED){
+            list_remove(&cur->general_tag);
+            list_append(&thread_ready_list,&cur->general_tag);
+        }
     }
-
     if(list_empty(&thread_ready_list)){
         thread_unblock(idle_thread);
     }
     thread_tag=NULL;
     thread_tag=list_pop(&thread_ready_list);
-    ASSERT(!elem_find(&thread_ready_list,thread_tag));
     struct task_struct*next=elem2entry(struct task_struct,general_tag,thread_tag);
     next->status=TASK_RUNNING;
     process_activate(next);

@@ -11,10 +11,101 @@
 #include "../include/stdio.h"
 #include "../include/memory.h"
 #include "../include/string.h"
+#include "../include/fault.h"
 
 extern uint8_t channel_cnt;
 extern struct ide_channel channels[2];
 extern struct list partition_list;
+extern struct dir root_dir;
+extern struct partition* cur_part;
+extern struct file file_table[MAX_FILE_OPEN];
+
+static uint32_t fd_local2global(uint32_t local_fd){
+    struct task_struct* cur=running_thread();
+    int32_t global_fd=cur->fd_table[local_fd];
+    ASSERT(global_fd>=0&&global_fd<MAX_FILE_OPEN);
+    return (uint32_t)global_fd;
+}
+
+static char* path_parse(char* pathname,char* name_store){
+    if(pathname[0]=='/'){
+        while(*(++pathname)=='/');
+    }
+    while(*pathname!='/'&&*pathname!=0){
+        *name_store++=*pathname++;
+    }
+    if(pathname[0]==0){
+        *name_store++='\0';
+        return NULL;
+    }
+    *name_store++='\0';
+    return pathname;
+}
+
+static int search_file(const char* pathname,struct path_search_record* searched_record)
+{
+    if(!strcmp(pathname,"/")||!strcmp(pathname,"/.")||!strcmp(pathname,"/..")){
+        searched_record->parent_dir=&root_dir;
+        searched_record->file_type=FT_DIRECTORY;
+        searched_record->searched_path[0]=0;
+        return 0;
+    }
+    uint32_t path_len=strlen(pathname);
+    ASSERT(pathname[0]=='/'&&path_len>1&&path_len<MAX_PATH_LEN);
+    char* sub_path=(char*)pathname;
+    struct dir* parent_dir=&root_dir;
+    struct dir_entry dir_e;
+    char name[MAX_FILE_NAME_LEN]={0};
+    searched_record->parent_dir=parent_dir;
+    searched_record->file_type=FT_UNKNOWN;
+    uint32_t parent_inode_no=0;
+
+    sub_path=path_parse(sub_path,name);
+    while(name[0]){
+        ASSERT(strlen(searched_record->searched_path)<512);
+        strcat(searched_record->searched_path,"/");
+        strcat(searched_record->searched_path,name);
+        if(search_dir_entry(cur_part,parent_dir,name,&dir_e)){
+            memset(name,0,MAX_FILE_NAME_LEN);
+            if(sub_path!=NULL){
+                sub_path=path_parse(sub_path,name);
+            }
+            if(dir_e.f_type==FT_DIRECTORY){
+                parent_inode_no=parent_dir->inode->i_no;
+                dir_close(parent_dir);
+                parent_dir=dir_open(cur_part,dir_e.i_no);
+                searched_record->parent_dir=parent_dir;
+            }else if(dir_e.f_type==FT_REGULAR){
+                searched_record->file_type=FT_REGULAR;
+                return dir_e.i_no;
+            }
+        }else{
+            return -1;
+        }
+    }
+    dir_close(searched_record->parent_dir);
+
+    searched_record->parent_dir=dir_open(cur_part,parent_inode_no);
+    searched_record->file_type=FT_DIRECTORY;
+    return dir_e.i_no;
+}
+
+
+int32_t path_depth_cnt(char* pathname){
+    ASSERT(pathname!=NULL);
+    char* p=pathname;
+    char name[MAX_FILE_NAME_LEN];
+    uint32_t depth=0;
+    p=path_parse(p,name);
+    while(name[0]){
+        depth++;
+        memset(name,0,MAX_FILE_NAME_LEN);
+        if(p){
+            p=path_parse(p,name);
+        }
+    }
+    return depth;
+}
 
 struct partition* cur_part;
 
@@ -61,7 +152,7 @@ static void partition_format(struct partition* part){
     printk("    inode_bitmap_sectors: %d\n",sb.inode_bitmap_sects);
     printk("    inode_table_sectors: %d\n",sb.inode_table_sects);
     printk("    block_bitmap_sectors: %d\n",sb.block_bitmap_sects);
-    printk("    data_struct start lba: %d\n",sb.data_struct_lba);
+    printk("    data start lba: %d\n",sb.data_struct_lba);
 
     hd=part->my_disk;
 
@@ -144,6 +235,10 @@ static bool mount_partition(struct list_elem* pelem,int arg){
         ide_read(hd,sb_buf->inode_bitmap_lba,cur_part->inode_bitmap.bits,sb_buf->inode_bitmap_sects);
 
         list_init(&cur_part->open_inodes);
+
+        printk("    inode table lba:0x%x\n",cur_part->sb->inode_table_lba);
+        printk("    inode table sects:0x%x\n",cur_part->sb->inode_table_sects);
+        printk("    root_dir start lba:0x%x\n",cur_part->sb->data_struct_lba);
         printk("mount %s done\n",part->name);
         return True;
     }
@@ -193,5 +288,458 @@ void filesys_init(){
     sys_free(sb_buf);
     char default_part[8]="sdb1";
     list_traversal(&partition_list,mount_partition,(int)default_part);
+    open_root_dir(cur_part);
+
+    uint32_t fd_idx=0;
+    while(fd_idx<MAX_FILE_OPEN){
+        file_table[fd_idx++].fd_inode=NULL;
+    }
 }
 
+int32_t sys_open(const char* pathname,uint8_t flags){
+    if(pathname[strlen(pathname)-1]=='/'){
+        printk("cannot open a directory %s\n",pathname);
+        return -1;
+    }
+    ASSERT(flags<=7);
+    int32_t fd=-1;
+
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+    if(searched_record.file_type==FT_DIRECTORY){
+        printk("cannot open a directory with open(), use opendir() instead.\n");
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    uint32_t path_searched_depth=path_depth_cnt(searched_record.searched_path);
+
+    if(pathname_depth!=path_searched_depth){
+        printk("search path failed, maybe subpath question\n");
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+
+    if(!found&&!(flags&O_CREAT)){
+        printk("in path %s, file %s is not exist\n",
+                searched_record.searched_path,
+                (strrchr(searched_record.searched_path,'/')+1));
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    switch(flags&O_CREAT){
+        case O_CREAT:
+        {
+            if(found){
+                printk("already have file %s\n",(strrchr(searched_record.searched_path,'/')+1));
+                return -1;
+            }
+            printk("creating file\n");
+            fd=file_create(searched_record.parent_dir,(strrchr(searched_record.searched_path,'/')+1),flags);
+            dir_close(searched_record.parent_dir);
+            printk("created file %s\n",(strrchr(searched_record.searched_path,'/')+1));
+            break;
+        }
+        default:
+        {
+            fd=file_open(inode_no,flags);
+            break;
+        }
+    }
+    return fd;
+}
+
+int32_t sys_close(int32_t fd){
+    int32_t ret=-1;
+    if(fd>2){
+        uint32_t _fd=fd_local2global(fd);
+        ret=file_close(&file_table[_fd]);
+        running_thread()->fd_table[fd]=-1;
+    }
+    return ret;
+}
+
+int32_t sys_opendir(const char* pathname,uint8_t flags){
+    ASSERT(flags<=7);
+    int32_t fd=-1;
+
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+    if(searched_record.file_type==FT_REGULAR){
+        printk("cannot open a directory with opendir(), use open() instead.\n");
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    uint32_t path_searched_depth=path_depth_cnt(searched_record.searched_path);
+
+    if(pathname_depth!=path_searched_depth){
+        printk("search path failed, maybe subpath question\n");
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+
+    if(!found&&!(flags&O_CREAT)){
+        printk("in path %s, DIR %s is not exist\n",
+                searched_record.searched_path,
+                (strrchr(searched_record.searched_path,'/')+1));
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    switch(flags&O_CREAT){
+        case O_CREAT:
+        {
+            if(found){
+                printk("already have DIR %s\n",(strrchr(searched_record.searched_path,'/')+1));
+                return -1;
+            }
+            printk("creating DIR\n");
+            fd=dir_create(searched_record.parent_dir,(strrchr(searched_record.searched_path,'/')+1),flags);
+            dir_close(searched_record.parent_dir);
+            printk("created DIR %s\n",(strrchr(searched_record.searched_path,'/')+1));
+        }
+    }
+    return fd;
+}
+
+int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
+    /*
+        需要添加其他内容，比如说文件指针
+    */
+    uint32_t _fd=fd_local2global(fd);
+    int32_t result=sys_write(fd,buf,file_table[_fd].fd_pos,bufsize);
+    if(result!=-1){
+        file_table[_fd].fd_pos+=bufsize;
+    }
+    return result;
+}
+
+int32_t sys_write(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
+    if(fd<0||fd==stdin_no){
+        printk("sys_write: fd error\n");
+        return -1;
+    }
+    if(fd==stdout_no){
+        char tmp_buf[1024]={0};
+        ASSERT(bufsize<1024);
+        memcpy(tmp_buf,buf,bufsize);
+        console_put_string(tmp_buf);
+        return bufsize;
+    }
+    uint32_t _fd=fd_local2global(fd);
+    struct file* wr_file=&file_table[_fd];
+    if(wr_file->fd_flag&O_WRONLY||wr_file->fd_flag&O_RDWR){
+        uint32_t bytes_written=file_write(wr_file,buf,offset,bufsize);
+        return bytes_written;
+    }else{
+        console_put_string("sys_write: not allowed to write file without flag O_RDWR or O_WRONLY\n");
+        return -1;
+    }
+}
+
+int32_t sys_read(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
+    if(fd<0||fd==stdout_no){
+        printk("sys_write: fd error\n");
+        return -1;
+    }
+    ASSERT(buf!=NULL);
+    uint32_t _fd=fd_local2global(fd);
+    return file_read(&file_table[_fd],buf,offset,bufsize);
+}
+
+int32_t sys_seekp(int32_t fd,int32_t offset,enum whence wh_type){
+    uint32_t _fd=fd_local2global(fd);
+    switch(wh_type){
+        case SEEK_SET:
+        {
+            file_table[_fd].fd_pos=offset;
+            break;
+        }
+        case SEEK_CUR:
+        {
+            file_table[_fd].fd_pos+=offset;
+            break;
+        }
+        case SEEK_END:
+        {
+            file_table[_fd].fd_pos=offset+file_table[_fd].fd_inode->i_size;
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+    return file_table[_fd].fd_pos;
+}
+
+int32_t sys_remove_some_content(int32_t fd,int32_t offset,int32_t size){
+    if(fd<3){
+        printk("sys_remove_some_content: fd error\n");
+        return -1;
+    }
+    uint32_t _fd=fd_local2global(fd);
+    return file_remove_some_content(&file_table[_fd],offset,size);
+}
+
+int32_t sys_remove(const char* pathname){
+    char name[MAX_FILE_NAME_LEN]={0};
+    int idx=0;
+    for(idx=strlen(pathname)-1;idx>=0;idx--){
+        if(pathname[idx]=='/'){
+            break;
+        }
+    }
+    idx++;
+    strcpy(name,pathname+idx);
+    if(pathname[strlen(pathname)-1]=='/'){
+        printk("temporary cannot remove a directory %s\n",pathname);
+        return -1;
+    }
+    int32_t fd=-1;
+
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+
+    if(found==False){
+        printk("%s\n",pathname);
+        printk("cannot find file!\n");
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+
+    if(searched_record.file_type==FT_DIRECTORY){
+        printk("temporary cannot remove a directory %s\n",pathname);
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    uint32_t path_searched_depth=path_depth_cnt(searched_record.searched_path);
+
+    if(pathname_depth!=path_searched_depth){
+        printk("search path failed, maybe subpath question\n");
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+
+    struct inode* parent_inode=searched_record.parent_dir->inode;
+
+    uint32_t secondary_lba=0;
+    uint32_t all_blocks[140]={0};
+    uint32_t io_buf[1024];
+    for(int i=0;i<13;i++){
+        all_blocks[i]=parent_inode->i_sectors[i];
+        if(i==12&&all_blocks[i]!=0){
+            secondary_lba=all_blocks[i];
+            ide_read(cur_part->my_disk,all_blocks[i],all_blocks+12,1);
+        }
+    }
+    uint32_t blocks_passed=0;
+    while(all_blocks[blocks_passed]!=0){
+        ide_read(cur_part->my_disk,all_blocks[blocks_passed],io_buf,1);
+        struct dir_entry* dirs=(struct dir_entry*)io_buf;
+        for(int i=0;i<(BLOCK_SIZE)/(sizeof(struct dir_entry));i++){
+            if(!strcmp(dirs->filename,name)){
+                memset(dirs,0,sizeof(struct dir_entry));
+                ide_write(cur_part->my_disk,all_blocks[blocks_passed],io_buf,1);
+                break;
+            }
+            dirs++;
+        }
+        blocks_passed+=1;
+    }
+    dir_close(searched_record.parent_dir);
+    struct file File;
+    File.fd_inode=inode_open(cur_part,inode_no);
+    file_remove_some_content(&File,0,File.fd_inode->i_size);
+    inode_delete(cur_part,inode_no,io_buf);
+    list_remove(&File.fd_inode->inode_tag);
+    return 0;
+}
+
+
+int32_t sys_dir_list(const char*pathname){
+
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+    if(found==False){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    if(searched_record.file_type!=FT_DIRECTORY){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    struct inode* dir=inode_open(cur_part,inode_no);
+    uint32_t secondary_lba;
+    uint32_t* all_blocks=(uint32_t*)sys_malloc(140*sizeof(uint32_t));
+    uint8_t io_buf[512];
+    for(int i=0;i<13;i++){
+        all_blocks[i]=dir->i_sectors[i];
+        if(i==12&&all_blocks[i]!=0){
+            secondary_lba=all_blocks[i];
+            ide_read(cur_part->my_disk,all_blocks[i],all_blocks+12,1);
+        }
+    }
+    for(int i=0;i<140&&all_blocks[i]!=0;i++){
+        ide_read(cur_part->my_disk,all_blocks[i],io_buf,1);
+        struct dir_entry* dirE=(struct dir_entry*)io_buf;
+        int cnt=0;
+        printf("\n",NULL);
+        while((cnt<(BLOCK_SIZE/(sizeof(struct dir_entry))))){
+            if(dirE->filename[0]!='\0')
+                printf("%s ",dirE->filename);
+            dirE++;
+            cnt++;
+        }
+    }
+    inode_close(dir);
+    dir_close(searched_record.parent_dir);
+    sys_free(all_blocks);
+    return 0;
+}
+
+
+int32_t sys_delete_dir(const char* pathname){
+    char name[MAX_FILE_NAME_LEN]={0};
+    int idx=0;
+    for(idx=strlen(pathname)-1;idx>=0;idx--){
+        if(pathname[idx]=='/'){
+            break;
+        }
+    }
+    idx++;
+    strcpy(name,pathname+idx);
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+    int inode_no=search_file(pathname,&searched_record);
+    ASSERT(inode_no!=0);
+    bool found=inode_no!=-1?True:False;
+    if(!found){
+        printk("dir not found\n");
+        return -1;
+    }
+    if(searched_record.file_type!=FT_DIRECTORY){
+        printk("not a DIR!\n");
+        return -1;
+    }
+    struct inode* inode=inode_open(cur_part,inode_no);
+    struct dir Dir;
+    Dir.inode=inode;
+    dir_delete(&Dir);
+    inode_close(inode);
+    uint32_t* all_blocks=(uint32_t*)sys_malloc(140);
+    if(all_blocks==NULL){
+        printk("dir_delete: sys_malloc for all_blocks failed\n");
+        sys_free(all_blocks);
+        return -1;
+    }
+    uint32_t  secondary_lba=0;
+    for(int i=0;i<13;i++){
+        all_blocks[i]=searched_record.parent_dir->inode->i_sectors[i];
+        if(all_blocks[i]!=0&&i==12){
+            secondary_lba=all_blocks[i];
+            ide_read(cur_part->my_disk,all_blocks[i],all_blocks+12,1);
+        }
+    }
+    uint32_t blocks_passed=0;
+    uint8_t* io_buf=(uint8_t*)sys_malloc(BLOCK_SIZE);
+    while(all_blocks[blocks_passed]!=0){
+        struct dir_entry* dirE=(struct dir_entry*)io_buf;
+        int cnt=0;
+        ide_read(cur_part->my_disk,all_blocks[blocks_passed],io_buf,1);
+        while(cnt<(BLOCK_SIZE/sizeof(struct dir_entry))&&dirE->f_type!=FT_UNKNOWN){
+            if(!strcmp(dirE->filename,"..")||!strcmp(dirE->filename,".")){
+                ;
+            }else{
+                if(!strcmp(dirE->filename,name)){
+                    printk("1\n");
+                    memset(dirE,0,sizeof(struct dir_entry));
+                    ide_write(cur_part->my_disk,all_blocks[blocks_passed],io_buf,1);
+                    goto delete_end;
+                }
+            }
+            dirE++;
+            cnt++;
+        }
+        blocks_passed+=1;
+    }
+delete_end:
+    sys_free(io_buf);
+    sys_free(all_blocks);
+    dir_close(searched_record.parent_dir);
+    return 0;
+}
+
+
+
+int32_t user_file_open(const char* pathname,uint8_t flags){
+    return sys_open(pathname,flags);
+}
+
+int32_t user_mkdir(const char* pathname){
+    return sys_opendir(pathname,O_CREAT);
+}
+
+int32_t user_file_read(int32_t fd,const char* buf,uint32_t bufsize){
+    int32_t _fd=fd_local2global(fd);
+    if(_fd==GENERAL_FAULT){
+        return CANNOT_FIND_FD_IN_PROCESS_STACK;
+    }
+    if(file_table[_fd].fd_inode==NULL){
+        return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
+    }
+    int32_t read_cnt=sys_read(fd,buf,file_table[_fd].fd_pos,bufsize);
+    if(read_cnt==GENERAL_FAULT){
+        return CANNOT_READ_FILE;
+    }
+    file_table[_fd].fd_pos+=read_cnt;
+    return read_cnt;
+}
+
+int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type){
+    int32_t _fd=fd_local2global(fd);
+    if(_fd==GENERAL_FAULT){
+        return CANNOT_FIND_FD_IN_PROCESS_STACK;
+    }
+    if(file_table[_fd].fd_inode==NULL){
+        return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
+    }
+    int32_t result=sys_seekp(fd,offset,wh_type);
+    return result;
+}
+
+int32_t user_file_remove_some_content(int32_t fd,int32_t size){
+    int32_t _fd=fd_local2global(fd);
+    if(_fd==GENERAL_FAULT){
+        return CANNOT_FIND_FD_IN_PROCESS_STACK;
+    }
+    if(file_table[_fd].fd_inode==NULL){
+        return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
+    }
+
+    int32_t result=sys_remove_some_content(fd,file_table[_fd].fd_pos,size);
+    if(result==GENERAL_FAULT){
+        return CANNOT_REMOVE_SOME_COTENT_FROM_FILE;
+    }
+    file_table[_fd].fd_pos+=size;
+    return size;
+}
