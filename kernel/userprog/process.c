@@ -263,6 +263,7 @@ pid_t sys_fork(void){
     list_append(&thread_ready_third_list,&child_thread->general_tag);
     ASSERT(!elem_find(&thread_all_list,&child_thread->all_list_tag));
     list_append(&thread_all_list,&child_thread->all_list_tag);
+    sema_init(&(child_thread->waiting_sema),0);
     //intr_set_status(old_status);
     return child_thread->pid;
 }

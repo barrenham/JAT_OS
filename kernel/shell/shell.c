@@ -72,7 +72,8 @@ void print_prompt(void){
     printf("[user&localhost %s]$ ",cwd_cache);
 }
 
-static void process_cat_command(char* cmd_line){
+static void process_cat_command(void* _cmd_line){
+    char* cmd_line=_cmd_line;
     int i = 3;
     while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH) {
         i++;
@@ -104,7 +105,8 @@ static void process_cat_command(char* cmd_line){
     closeFile(fd);
 }
 
-static void process_mkdir_command(char* cmd_line) {
+static void process_mkdir_command(void* _cmd_line) {
+    char* cmd_line=_cmd_line;
     int i = 5;  // 假设命令行从 'mkdir' 后开始
     
     // 跳过多余的空格
@@ -138,7 +140,8 @@ static void process_mkdir_command(char* cmd_line) {
     }
 }
 
-static void process_kill_command(char* cmd_line){
+static void process_kill_command(void* _cmd_line){
+    char* cmd_line=_cmd_line;
     int i = 4;
     while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH) {
         i++;
@@ -166,7 +169,8 @@ static void process_kill_command(char* cmd_line){
     }
 }
 
-static void process_cd_command(char* cmd_line) {
+static void process_cd_command(void* _cmd_line) {
+    char* cmd_line=_cmd_line;
     int i = 2;  // 假设命令行从 'cd' 后开始
     int i_bat = 0;
     
@@ -360,7 +364,8 @@ static void process_program(){
     process_exit();
 }
 
-static void process_rm_command(char* cmd_line) {
+static void process_rm_command(void* _cmd_line) {
+    char* cmd_line=_cmd_line;
     int i = 2;  // 假设命令行从 'rm' 后开始
     // 跳过多余的空格
     while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH) {
@@ -409,9 +414,11 @@ void my_shell(void){
         }
         if(cmd_line[0]=='l'&&cmd_line[1]=='s'){
             thread_start("ls",SECOND_PRIO,ls,NULL);
+            thread_wait();
         }
         if(cmd_line[0]=='p'&&cmd_line[1]=='s'){
             thread_start("ps",SECOND_PRIO,ps,NULL);
+            thread_wait();
         }
         if(cmd_line[0]=='c'&&cmd_line[1]=='d'){
             process_cd_command(cmd_line);
@@ -419,14 +426,17 @@ void my_shell(void){
         if(cmd_line[0]=='m'&&cmd_line[1]=='k'&&cmd_line[2]=='d'&&cmd_line[3]=='i'&&cmd_line[4]=='r'){
             strcpy(cmd_line_ps_bat,cmd_line);
             thread_start("mkdir",SECOND_PRIO,process_mkdir_command,(cmd_line_ps_bat));
+            thread_wait();
         }
         if(cmd_line[0]=='k'&&cmd_line[1]=='i'&&cmd_line[2]=='l'&&cmd_line[3]=='l'){
             strcpy(cmd_line_kill_bat,cmd_line);
             thread_start("kill",SECOND_PRIO,process_kill_command,(cmd_line_kill_bat));
+            thread_wait();
         }
         if(cmd_line[0]=='c'&&cmd_line[1]=='a'&&cmd_line[2]=='t'){
             strcpy(cmd_line_cat_bat,cmd_line);
             thread_start("cat",SECOND_PRIO,process_cat_command,(cmd_line_cat_bat));
+            thread_wait();
         }
         if(cmd_line[0]=='d'&&cmd_line[1]=='b'&&cmd_line[2]=='g'){
             if(cmd_line[4]=='f'&&cmd_line[5]=='t'){
@@ -450,10 +460,12 @@ void my_shell(void){
         if(cmd_line[0]=='e'&&cmd_line[1]=='x'&&cmd_line[2]=='e'&&cmd_line[3]=='c'){
             strcpy(cmd_line_exec_bat,cmd_line);
             process_execute(((uint32_t)process_program),"loader");
+            thread_wait();
         }
         if(cmd_line[0]=='r'&&cmd_line[1]=='m'){
             strcpy(cmd_line_rm_bat,cmd_line);
             thread_start("rm",SECOND_PRIO,process_rm_command,(cmd_line_rm_bat));
+            thread_wait();
         }
     }
 }

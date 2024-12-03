@@ -65,6 +65,14 @@ struct thread_stack{
     void* func_arg;
 };
 
+#ifndef __SEMA_THREAD_SYNC_H
+#define __SEMA_THREAD_SYNC_H
+    struct semaphore{
+        uint8_t value;
+        struct list waiters;
+    };
+#endif
+
 struct task_struct{
     uint32_t*               self_kstack;
     pid_t                   pid;
@@ -80,6 +88,7 @@ struct task_struct{
     struct virtual_addr     userprog_vaddr;
     struct mem_block_desc   u_block_desc[DESC_CNT];
     int32_t                 fd_table[MAX_FILES_OPEN_PER_PROC];
+    struct semaphore        waiting_sema;
     uint32_t                stack_magic;
 };
 
@@ -119,5 +128,7 @@ void thread_yield(void);
 void thread_exit(void);
 
 pid_t allocate_pid(void);
+
+void thread_wait(void);
 
 #endif

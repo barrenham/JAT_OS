@@ -122,17 +122,17 @@ put_char:
     dec     bx
     shl     bx,     1           ;bx * 2用于表示文本模式下的正确光标位置
 
-    mov     byte    gs:[bx],    0x20    ;将待删除的字节变为0或空格
+    mov     byte    [gs:bx],    0x20    ;将待删除的字节变为0或空格
     inc     bx
-    mov     byte    gs:[bx],    0x07
+    mov     byte    [gs:bx],    0x07
     shr     bx,     1
     jmp     .set_cursor
 
 .put_other:
     shl     bx,     1
-    mov     byte    gs:[bx],    cl
+    mov     byte    [gs:bx],    cl
     inc     bx
-    mov     byte    gs:[bx],    0x07
+    mov     byte    [gs:bx],    0x07
     shr     bx,     1
     inc     bx
     cmp     bx,     2000
@@ -167,7 +167,7 @@ put_char:
     mov     ecx,    80
 
 .cls:
-    mov     word    gs:[ebx],   0x0720
+    mov     word    [gs:ebx],   0x0720
     add     ebx,    2
     loop    .cls
     mov     ebx,    1920

@@ -5,10 +5,13 @@
 #include "stdint.h"
 #include "thread.h"
 
-struct semaphore{
-    uint8_t value;
-    struct list waiters;
-};
+#ifndef __SEMA_THREAD_SYNC_H
+#define __SEMA_THREAD_SYNC_H
+    struct semaphore{
+        uint8_t value;
+        struct list waiters;
+    };
+#endif
 
 struct lock{
     struct task_struct* holder;
