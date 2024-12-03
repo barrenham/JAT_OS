@@ -74,7 +74,7 @@ void tss_init(){
 
     *((struct gdt_desc*)0xc000062b)=make_gdt_desc(
     (uint32_t*)0,
-    0xfffff,
+    0xc0fff,
     GDT_CODE_ATTR_LOW_DPL3,
     GDT_ATTR_HIGH
     );
@@ -87,7 +87,7 @@ void tss_init(){
     );
 
     uint64_t gdt_operand=\
-    ((8*7-1)|((uint64_t)(uint32_t)0xc0000603<<16));
+    ((8*7-1)|((uint64_t)(uint64_t)0xc0000603<<16));
 
     asm volatile("lgdt %0": :"m"(gdt_operand));
     asm volatile("ltr  %w0": :"r"(SELECTOR_TSS));

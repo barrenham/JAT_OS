@@ -4,7 +4,9 @@
 #include "../include/io.h"
 #include "../include/print.h"
 
-#define IDT_DESC_CNT        0x30
+#define IDT_DESC_CNT        0x81
+
+extern uint32_t syscall_handler(void);
 
 struct gate_desc{
     uint16_t        func_offset_low_word;
@@ -28,11 +30,9 @@ pic_init        (void)
     outb(PIC_S_DATA,    0X02);
     outb(PIC_S_DATA,    0x01);
 
-    outb(PIC_M_DATA,    0xfe);
-    outb(PIC_S_DATA,    0xff);
 
-    outb(PIC_M_DATA,    0xfc);
-    outb(PIC_S_DATA,    0xff);
+    outb(PIC_M_DATA,    0xf8);
+    outb(PIC_S_DATA,    0x3f);
 
     put_string("   pic_init done\n");
 }
@@ -55,18 +55,20 @@ intr_handler idt_table[IDT_DESC_CNT];
 static void 
 general_intr_handler(uint8_t vec_nr)
 {
+    
     if(vec_nr== 0x27 || vec_nr == 0x2f){
         return;
     }
+    /*
     set_cursor(0);
     int cursor_pos=0;
-    while(cursor_pos<2000){
+    while(cursor_pos<2000){ 
         put_char(' ');
         cursor_pos++;
     }
+    */
     set_cursor(0);
     put_string("!!! exception message begin !!!\n");
-    set_cursor(168);
     put_string(intr_name[vec_nr]);
     if(vec_nr==14){
         int page_fault_vaddr=0;
@@ -75,6 +77,7 @@ general_intr_handler(uint8_t vec_nr)
         put_int(page_fault_vaddr);
     }
     put_string("\n!!! exception message end !!!\n");
+    
     while(1);
 }
 
@@ -124,10 +127,11 @@ make_idt_desc   (struct gate_desc*    p_gdesc,
 static void
 idt_desc_init   (void)
 {
-    int i;
+    int i,lastindex=IDT_DESC_CNT-1;
     for(i=0;i<IDT_DESC_CNT;i++){
         make_idt_desc(&idt[i],IDT_DESC_ATTR_DPL0,intr_entry_table[i]);
     }
+    make_idt_desc(&idt[lastindex],IDT_DESC_ATTR_DPL3,syscall_handler);
     put_string("   idt_desc_init   done\n");
 }
 
@@ -138,8 +142,8 @@ idt_init        (void)
     idt_desc_init();
     exception_init();
     pic_init();
-
-    uint64_t    idt_operand=((sizeof(idt)-1)|(uint64_t)((uint32_t)idt<<16));
+    put_int(idt);
+    uint64_t    idt_operand=((sizeof(idt)-1)|(uint64_t)((uint64_t)idt<<16));
     asm volatile("lidt %0"
                 :
                 :"m"(idt_operand));

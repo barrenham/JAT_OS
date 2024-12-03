@@ -6,14 +6,14 @@
 #include "sync.h"
 #include "bool.h"
 
-#define bufsize         64
+#define __bufsize         64
 
 struct ioqueue{
     struct lock lock_consumer;
     struct lock lock_producer;
     struct task_struct* producer;
     struct task_struct* consumer;
-    char buf[bufsize];
+    char buf[__bufsize];
     int32_t head;
     int32_t tail;
 };
@@ -23,5 +23,6 @@ bool ioq_full(struct ioqueue*ioq);
 void ioqueue_init(struct ioqueue* ioq);
 char ioq_getchar(struct ioqueue* ioq);
 void ioq_putchar(struct ioqueue* ioq,char byte);
+uint32_t ioq_length(struct ioqueue* ioq);
 
 #endif

@@ -12,16 +12,16 @@ void ioqueue_init(struct ioqueue* ioq){
 }
 
 static int32_t next_pos(int32_t pos){
-    return (pos+1)%bufsize;
+    return (pos+1)%__bufsize;
 }
 
 bool ioq_full(struct ioqueue*ioq){
-    ASSERT(intr_get_status()==INTR_OFF);
+    //ASSERT(intr_get_status()==INTR_OFF);
     return next_pos(ioq->head)==ioq->tail;
 }
 
 bool ioq_empty(struct ioqueue*ioq){
-    ASSERT(intr_get_status()==INTR_OFF);
+    //ASSERT(intr_get_status()==INTR_OFF);
     return ioq->head==ioq->tail;
 }
 
@@ -38,7 +38,7 @@ static void wakeup(struct task_struct** waiter){
 }
 
 char ioq_getchar(struct ioqueue* ioq){
-    ASSERT(intr_get_status()==INTR_OFF);
+    //ASSERT(intr_get_status()==INTR_OFF);
     while (ioq_empty(ioq))
     {
         lock_acquire(&ioq->lock_consumer);
@@ -56,7 +56,7 @@ char ioq_getchar(struct ioqueue* ioq){
 }
 
 void ioq_putchar(struct ioqueue* ioq,char byte){
-    ASSERT(intr_get_status()==INTR_OFF);
+    //ASSERT(intr_get_status()==INTR_OFF);
     while(ioq_full(ioq)){
         lock_acquire(&ioq->lock_producer);
         ioq_wait(&ioq->producer);
@@ -67,4 +67,14 @@ void ioq_putchar(struct ioqueue* ioq,char byte){
     if(ioq->consumer!=NULL){
         wakeup(&ioq->consumer);
     }
+}
+
+uint32_t ioq_length(struct ioqueue* ioq){
+    uint32_t len=0;
+    if(ioq->head>=ioq->tail){
+        len=ioq->head-ioq->tail;
+    }else{
+        len=__bufsize-(ioq->tail-ioq->head);
+    }
+    return len;
 }

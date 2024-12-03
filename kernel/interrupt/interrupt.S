@@ -6,10 +6,10 @@
 extern      idt_table
 extern      put_string
 
+global      intr_entry_table
+
 section     .data
     intr_str    db      "interrupt occur!", 0xa,    0
-
-global      intr_entry_table
 intr_entry_table:
 
 %macro     VECTOR       2
@@ -22,13 +22,13 @@ intr%1entry:
     push    gs
     pushad
 
+
     mov     al,             0x20
     out     0xa0,           al
     out     0x20,           al
 
     push    %1
     call    [idt_table + %1*4]
-    add     esp,            4
 
     jmp     intr_exit
 
@@ -39,6 +39,8 @@ section     .data
 section     .text
 global  intr_exit
 intr_exit:
+    sti
+    add     esp,            4
     popad
     pop     gs
     pop     fs
@@ -96,3 +98,34 @@ VECTOR 0x2c ,ZERO
 VECTOR 0x2d ,ZERO
 VECTOR 0x2e ,ZERO
 VECTOR 0x2f ,ZERO
+
+
+
+[bits 32]
+extern syscall_table
+section .text
+global  syscall_handler
+syscall_handler:
+    sti
+    push    0
+    push    ds
+    push    es
+    push    fs
+    push    gs
+    pushad
+
+
+    push    0x80
+    push    edx
+    push    ecx
+    push    ebx
+
+
+    call    [syscall_table+eax*4]
+    add     esp,    12
+
+    mov     [esp+8*4],  eax
+
+    cli
+    jmp     intr_exit
+    

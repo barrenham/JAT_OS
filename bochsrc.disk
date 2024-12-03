@@ -184,7 +184,8 @@
 #  2.2.6 2.6Ghz Intel Core 2 Duo with WinXP/g++ 3.4       21 to 25 Mips
 #  2.2.6 2.1Ghz Athlon XP with Linux 2.6/g++ 3.4          12 to 15 Mips
 #=======================================================================
-cpu: model=core_duo_t2400_yonah, count=1, ips=50000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
+cpu: model=atom_n270, count=1, ips=40000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
+#cpu: model=p3_katmai, count=1, ips=40000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
 cpu: cpuid_limit_winnt=0
 
 #=======================================================================
@@ -716,6 +717,7 @@ ata3: enabled=0, ioaddr1=0x168, ioaddr2=0x360, irq=9
 #   ata3-slave:  type=cdrom, path=iso.sample, status=inserted
 #=======================================================================
 ata0-master: type=disk, path="hd60M.img", mode=flat
+ata0-slave: type=disk, path="hd80M.img", mode=flat
 #ata0-master: type=disk, mode=flat, path="30M.sample", cylinders=615, heads=6, spt=17
 #ata0-master: type=disk, mode=flat, path="c.img", cylinders=0 # autodetect
 #ata0-slave: type=disk, mode=vvfat, path=/bochs/images/vvfat, journal=vvfat.redolog
@@ -1255,7 +1257,7 @@ speaker: enabled=1, mode=sound
 # The maximum amount of memory supported is 2048Mb.
 # The 'MEGS' option is deprecated. Use 'MEMORY' option instead.
 #=======================================================================
-megs: 1024
+megs: 256
 #megs: 128
 #megs: 64
 #megs: 32

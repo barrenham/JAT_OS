@@ -10,6 +10,7 @@
 struct ioqueue kbd_buf;
 
 #define KBD_BUF_PORT        0x60
+#define KBD_STATUS_PORT     0x64
 
 #define esc '\033'		//esc 和 delete都没有
 #define delete '\0177'
@@ -101,83 +102,96 @@ char keymap[][2] = {
 /* 0x3A */	{caps_lock_char, caps_lock_char}
 };
 
+static bool is_kbd_buffer_empty() {
+    // 读取状态寄存器
+    uint8_t status = inb(KBD_STATUS_PORT);
+    // 检查是否有数据可读
+    return !(status & 0x01); // 位0为1表示缓冲区有数据
+}
+
 static void intr_keyboard_handler(void){
-    bool ctrl_down_last=ctrl_status;
-    bool shift_down_last=shift_status;
-    bool caps_lock_last=caps_lock_status;
-
-    bool break_code;
-    uint16_t scancode=inb(KBD_BUF_PORT);
-
-    if(scancode==0xe0){
-        ext_scancode=True;
-        return;
-    }
-
-    if(ext_scancode){
-        scancode=((0xe000)|scancode);
-        ext_scancode=False;
-    }
-
-    break_code=((scancode&0x0080)!=0);
-
-    if(break_code){
-        uint16_t make_code=(scancode&=0xff7f);
-        if(make_code==ctrl_l_make||make_code==ctrl_r_make){
-            ctrl_status=False;
-        }else if(make_code==shift_l_make||make_code==shift_r_make){
-            shift_status=False;
-        }else if(make_code==alt_l_make||make_code==alt_r_make){
-            alt_status=False;
+    while(True){
+        if (is_kbd_buffer_empty()) {
+            break; // 如果缓冲区为空，则退出循环
         }
-        return;
-    }else if((scancode>0x00&&scancode<0x3b)||(scancode==alt_r_make)||(scancode==ctrl_r_make)){
-        bool shift=False;
-        if( (scancode < 0x0e) || (scancode == 0x29) || (scancode == 0x1a) || \
-            (scancode == 0x1b) || (scancode == 0x2b) || (scancode == 0x27) || \
-            (scancode == 0x28) || (scancode == 0x33) || (scancode == 0x34) || \
-            (scancode == 0x35))
-    	{
-    	    if(shift_down_last)	
-                shift = True;
-    	}else{
-            if(shift_down_last&&caps_lock_last){
-                shift=False;
-            }else if(shift_down_last||caps_lock_last){
-                shift=True;
-            }else{
-                shift=False;
-            }
-        }
-        uint8_t index=(scancode&=0x00ff);
-        char cur_char=keymap[index][shift];
+        bool ctrl_down_last=ctrl_status;
+        bool shift_down_last=shift_status;
+        bool caps_lock_last=caps_lock_status;
 
-        if(cur_char){
-            if(!ioq_full(&kbd_buf)){
-                put_char(cur_char);
-                ioq_putchar(&kbd_buf,cur_char);
+        bool break_code;
+        uint16_t scancode=inb(KBD_BUF_PORT);
+
+        if(scancode==0xe0){
+            ext_scancode=True;
+            continue;
+        }
+
+        if(ext_scancode){
+            scancode=((0xe000)|scancode);
+            ext_scancode=False;
+        }
+
+        break_code=((scancode&0x0080)!=0);
+
+        if(break_code){
+            uint16_t make_code=(scancode&=0xff7f);
+            if(make_code==ctrl_l_make||make_code==ctrl_r_make){
+                ctrl_status=False;
+            }else if(make_code==shift_l_make||make_code==shift_r_make){
+                shift_status=False;
+            }else if(make_code==alt_l_make||make_code==alt_r_make){
+                alt_status=False;
             }
             return;
+        }else if((scancode>0x00&&scancode<0x3b)||(scancode==alt_r_make)||(scancode==ctrl_r_make)){
+            bool shift=False;
+            if( (scancode < 0x0e) || (scancode == 0x29) || (scancode == 0x1a) || \
+                (scancode == 0x1b) || (scancode == 0x2b) || (scancode == 0x27) || \
+                (scancode == 0x28) || (scancode == 0x33) || (scancode == 0x34) || \
+                (scancode == 0x35))
+            {
+                if(shift_down_last)	
+                    shift = True;
+            }else{
+                if(shift_down_last&&caps_lock_last){
+                    shift=False;
+                }else if(shift_down_last||caps_lock_last){
+                    shift=True;
+                }else{
+                    shift=False;
+                }
+            }
+            uint8_t index=(scancode&=0x00ff);
+            char cur_char=keymap[index][shift];
+
+            if(cur_char){
+                if(!ioq_full(&kbd_buf)){
+                    ioq_putchar(&kbd_buf,cur_char);
+                }
+                //put_char(cur_char);
+                continue;
+            }
+
+            if(scancode==ctrl_l_make||scancode==ctrl_r_make){
+                ctrl_status=True;
+            }else if((scancode==shift_l_make)||(scancode==shift_r_make)){
+                shift_status=True;
+            }else if((scancode==alt_l_make)||(scancode==alt_r_make)){
+                alt_status=True;
+            }else if(scancode==caps_lock_make){
+                caps_lock_status=!caps_lock_status;
+            }
+        }else{
+            put_string("unknown key\n");
         }
 
-        if(scancode==ctrl_l_make||scancode==ctrl_r_make){
-            ctrl_status=True;
-        }else if((scancode==shift_l_make)||(scancode==shift_r_make)){
-            shift_status=True;
-        }else if((scancode==alt_l_make)||(scancode==alt_r_make)){
-            alt_status=True;
-        }else if(scancode==caps_lock_make){
-            caps_lock_status=!caps_lock_status;
-        }
-    }else{
-        put_string("unknown key\n");
     }
-
+    
 }
 
 void keyboard_init(){
     put_string("keyboard init start\n");
     ioqueue_init(&kbd_buf);
     register_handler(0x21,intr_keyboard_handler);
-    put_string("keyboard init done");
+    put_string("keyboard init done\n");
 }

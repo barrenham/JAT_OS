@@ -2,6 +2,8 @@
 #include "print.h"
 #include "interrupt.h"
 
+
+
 void 
 panic_spin(char* filename,
            int line,
@@ -16,6 +18,8 @@ panic_spin(char* filename,
     put_string("\n");
     put_string("condition:");
     put_string((char*)condition);
+    put_string("\nline:");
+    put_int(line);
     put_string("\n");
     while(1);
 }

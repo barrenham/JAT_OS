@@ -15,4 +15,7 @@ panic_spin(char*filename,int line, const char*func,const char* condition);
     } 
 #endif  /*  NDEBUG  */
 
+#define TEST_PRINT
+
+
 #endif  /*  DEBUG_H  */
