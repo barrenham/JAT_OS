@@ -3,6 +3,8 @@
 #include "../include/debug.h"
 #include "../include/print.h"
 
+
+
 void sema_init(struct semaphore* psema,uint8_t value){
     psema->value=value;
     list_init(&psema->waiters);

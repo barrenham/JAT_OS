@@ -77,7 +77,7 @@ init_thread(struct task_struct* pthread,
 {
     memset(pthread,0,sizeof(*pthread));
     pthread->pid=allocate_pid();
-    pthread->parent_pid=-1;
+    pthread->parent_pid=running_thread()->pid;
     strcpy(pthread->name,name);
     if(pthread==main_thread){
         pthread->status=TASK_RUNNING;
@@ -99,6 +99,7 @@ init_thread(struct task_struct* pthread,
         pthread->fd_table[fd_idx]=-1;
         fd_idx++;
     }
+    sema_init(&pthread->waiting_sema,0);
     pthread->stack_magic=0x20240825;
 }
 
@@ -349,11 +350,25 @@ void thread_yield(void){
     intr_set_status(old_status);
 }
 
+void thread_wait(void){
+    sema_down(&(running_thread()->waiting_sema));
+}
+
 void thread_exit(void){
     struct task_struct* cur=running_thread();
     enum intr_status old_status=intr_disable();
     list_remove(&cur->general_tag);
     cur->status=TASK_DIED;
+    if(cur->parent_pid!=-1){
+        struct list_elem* elem=thread_all_list.head.next;
+        while(elem->next!=NULL){
+            struct task_struct* pcb=elem2entry(struct task_struct,all_list_tag,elem);
+            if(pcb->pid==cur->parent_pid){
+                sema_up(&(pcb->waiting_sema));
+            }
+            elem=elem->next;
+        }
+    }
     schedule();
     intr_set_status(old_status);
 }

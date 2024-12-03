@@ -184,7 +184,7 @@
 #  2.2.6 2.6Ghz Intel Core 2 Duo with WinXP/g++ 3.4       21 to 25 Mips
 #  2.2.6 2.1Ghz Athlon XP with Linux 2.6/g++ 3.4          12 to 15 Mips
 #=======================================================================
-cpu: model=atom_n270, count=1, ips=40000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
+cpu: model=core_duo_t2400_yonah, count=1, ips=300000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
 #cpu: model=p3_katmai, count=1, ips=40000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
 cpu: cpuid_limit_winnt=0
 
@@ -763,7 +763,7 @@ floppy_bootsig_check: disabled=0
 #=======================================================================
 #log: /dev/null
 log: bochsout.txt
-
+#log: -
 #=======================================================================
 # LOGPREFIX:
 # This handles the format of the string prepended to each log line.

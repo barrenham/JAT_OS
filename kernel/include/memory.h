@@ -6,7 +6,6 @@
 #include "list.h"
 
 
-
 enum pool_flags
 {
     PF_KERNEL=1,
