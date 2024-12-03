@@ -8,6 +8,7 @@
 #include "../include/stdio.h"
 #include "../include/print.h"
 #include "../include/list.h"
+#include "../include/sync.h"
 
 #define reg_data(channel)       (channel->port_base+0)
 #define reg_error(channel)      (channel->port_base+1)
@@ -69,6 +70,7 @@ static void swap_pairs_bytes(const char* dst,char* buf,uint32_t len){
 static void identify_disk(struct disk* hd){
     char id_info[512];
     select_disk(hd);
+    lock_acquire(&hd->my_channel->lock);
     cmd_out(hd->my_channel,CMD_IDENTIFY);
     sema_down(&hd->my_channel->disk_done);
     if(!busy_wait(hd)){
@@ -77,6 +79,7 @@ static void identify_disk(struct disk* hd){
         PANIC(error);
     }
     read_from_sector(hd,id_info,1);
+    lock_release(&hd->my_channel->lock);
     char buf[64];
     uint8_t sn_start=10*2,sn_len=20,md_start=27*2,md_len=40;
     swap_pairs_bytes(&id_info[sn_start],buf,sn_len);
@@ -145,6 +148,7 @@ static void select_disk(struct disk* hd){
 
 static void cmd_out(struct ide_channel* channel,uint8_t cmd){
     channel->expecting_intr=True;
+    asm volatile("hlt": : :"memory");
     outb(reg_cmd(channel),cmd);
 }
 
@@ -240,6 +244,7 @@ void ide_init(){
 void ide_read(struct disk* hd,uint32_t lba,void* buf,uint32_t sec_cnt){
     ASSERT(lba<=max_lba);
     ASSERT(sec_cnt>0);
+    enum intr_status old_status=intr_enable();
     lock_acquire(&hd->my_channel->lock);
     select_disk(hd);
     uint32_t secs_op;
@@ -262,11 +267,13 @@ void ide_read(struct disk* hd,uint32_t lba,void* buf,uint32_t sec_cnt){
         secs_done+=secs_op;
     }
     lock_release(&hd->my_channel->lock);
+    intr_set_status(old_status);
 }
 
 void ide_write(struct disk* hd,uint32_t lba,void* buf,uint32_t sec_cnt){
     ASSERT(lba<=max_lba);
     ASSERT(sec_cnt>0);
+    enum intr_status old_status=intr_enable();
     lock_acquire(&hd->my_channel->lock);
     select_disk(hd);
     uint32_t secs_op;
@@ -291,6 +298,7 @@ void ide_write(struct disk* hd,uint32_t lba,void* buf,uint32_t sec_cnt){
         secs_done+=secs_op;
     }
     lock_release(&hd->my_channel->lock);
+    intr_set_status(old_status);
 }
 
 void intr_hd_handler(uint8_t irq_no){
@@ -298,9 +306,18 @@ void intr_hd_handler(uint8_t irq_no){
     uint8_t ch_no=irq_no-0x2e;
     struct ide_channel* channel=&channels[ch_no];
     ASSERT(channel->irq_no==irq_no);
+    /*
+    struct list_elem* elem=channel->disk_done.waiters.head.next;
+    while(elem->next!=NULL){
+        struct task_struct* thread=elem2entry(struct task_struct,general_tag,elem);
+        put_string(thread);
+        put_string('\n');
+    }
+    */
     if(channel->expecting_intr){
         channel->expecting_intr=False;
         sema_up(&channel->disk_done);
         inb(reg_status(channel));
     }
 }
+

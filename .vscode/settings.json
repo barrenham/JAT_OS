@@ -26,6 +26,20 @@
         "fs.h": "c",
         "file.h": "c",
         "stdio-kernel.h": "c",
-        "super_block.h": "c"
+        "super_block.h": "c",
+        "*.tcc": "c",
+        "sync.h": "c",
+        "fstream": "c",
+        "iosfwd": "c",
+        "istream": "c",
+        "limits": "c",
+        "stop_token": "c",
+        "streambuf": "c",
+        "fault.h": "c",
+        "cassert": "c",
+        "math.h": "c",
+        "exec.h": "c",
+        "pipe.h": "c",
+        "userprog.h": "c"
     }
 }

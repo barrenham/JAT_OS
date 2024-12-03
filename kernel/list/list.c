@@ -41,10 +41,13 @@ list_append(struct list*plist,
 void 
 list_remove(struct list_elem* pelem)
 {
+    if(pelem->prev==NULL||pelem->next==NULL){
+        return;
+    }
     enum intr_status old_status=intr_disable();
     pelem->prev->next=pelem->next;
     pelem->next->prev=pelem->prev;
-
+    pelem->prev=pelem->next=NULL;
     intr_set_status(old_status);
 }
 
@@ -101,5 +104,5 @@ uint32_t list_len(struct list* plist){
 }
 
 bool list_empty(struct list* plist){
-    return (plist->head.next->next==NULL?True:False);
+    return ((plist->head.next->next==NULL)?True:False);
 }

@@ -16,7 +16,15 @@ enum SYSCALL_NR{
     SYS_DELETE,
     SYS_READ,
     SYS_SEEK,
-    SYS_RSC
+    SYS_RSC,
+    SYS_CLOSEFILE,
+    SYS_COPYFILE,
+    SYS_GETFILESIZE,
+    EXIT_PROCESS,
+    SYS_FORK,
+    SYS_GETFILEATTRIBUTE,
+    SYS_PIPE,
+    SYS_EXEC
 };
 
 uint32_t    sys_getpid(void);
@@ -31,5 +39,15 @@ int32_t     mkdir(const char* pathname);
 int32_t     read(int32_t fd,const char* buf,uint32_t bufsize);
 int32_t     seekp(int32_t fd,int32_t offset,enum whence wh_type);
 int32_t     remove_some_cotent(int32_t fd,int32_t size);
+int32_t     delete(const char* pathname);
+int32_t     user_file_copy(const char* dst_path,const char* src_path);
+int32_t     copyFile(const char* dst_path,const char* src_path);
+int32_t     closeFile(int32_t fd);
+filesize    getfilesize(int32_t fd);
+int32_t     process_exit(void);
+int32_t     fork(void);
+enum file_types 
+            get_file_type(const char* filepath);
+int32_t     pipe(int fd[2]);
 
 #endif

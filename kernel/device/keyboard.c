@@ -168,7 +168,7 @@ static void intr_keyboard_handler(void){
                 if(!ioq_full(&kbd_buf)){
                     ioq_putchar(&kbd_buf,cur_char);
                 }
-                put_char(cur_char);
+                //put_char(cur_char);
                 continue;
             }
 

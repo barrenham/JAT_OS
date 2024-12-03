@@ -22,6 +22,7 @@ intr%1entry:
     push    gs
     pushad
 
+
     mov     al,             0x20
     out     0xa0,           al
     out     0x20,           al
@@ -38,6 +39,7 @@ section     .data
 section     .text
 global  intr_exit
 intr_exit:
+    sti
     add     esp,            4
     popad
     pop     gs
@@ -112,12 +114,12 @@ syscall_handler:
     push    gs
     pushad
 
+
     push    0x80
     push    edx
     push    ecx
     push    ebx
 
-    
 
     call    [syscall_table+eax*4]
     add     esp,    12

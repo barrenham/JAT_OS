@@ -26,6 +26,7 @@ init_all    (void)
     console_init();
     tss_init();
     syscall_init();
+    intr_enable();
     ide_init();
     filesys_init();
 }

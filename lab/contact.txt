@@ -1,2 +1,0 @@
-bin/bochs -f lab/chapter3/a/bochsrc
-nasm -I. pmtest2.asm -o pmtest2.bin

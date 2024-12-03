@@ -12,6 +12,11 @@
 
 #define MAX_PATH_LEN        512
 
+#define FAILED_FD           -1
+
+typedef uint32_t filesize;
+typedef int32_t  file_descriptor;
+
 enum file_types{
     FT_UNKNOWN,
     FT_REGULAR,
@@ -66,7 +71,6 @@ int32_t sys_dir_list(const char*pathname);
 
 int32_t sys_delete_dir(const char* pathname);
 
-enum file_types sys_find_filetype(uint32_t inode_no);
 
 int32_t user_file_open(const char* pathname,uint8_t flags);
 
@@ -77,5 +81,15 @@ int32_t user_file_read(int32_t fd,const char* buf,uint32_t bufsize);
 int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type);
 
 int32_t user_file_remove_some_content(int32_t fd,int32_t size);
+
+int32_t user_delete(const char* pathname);
+
+int32_t user_file_close(int32_t fd);
+
+uint32_t fd_local2global(uint32_t local_fd);
+
+filesize sys_get_file_size(file_descriptor fd);
+
+enum file_types sys_get_file_attribute(const char* pathname);
 
 #endif

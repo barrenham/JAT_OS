@@ -17,6 +17,11 @@ enum std_fd{
     stderr_no
 };
 
+enum fd_flag{
+    NONE,
+    PIPE_FLAG
+};
+
 enum bitmap_type{
     INODE_BITMAP,
     BLOCK_BITMAP,

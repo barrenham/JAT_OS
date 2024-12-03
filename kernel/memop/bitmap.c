@@ -7,9 +7,7 @@
 #include "bool.h"
 
 void bitmap_init(struct bitmap* btmp){
-    put_string("    bitmap_init_start\n");
     memset(btmp->bits,0,btmp->btmp_bytes_len);
-    put_string("    bitmap_init_end\n");
 }
 
 

@@ -30,11 +30,9 @@ pic_init        (void)
     outb(PIC_S_DATA,    0X02);
     outb(PIC_S_DATA,    0x01);
 
-    outb(PIC_M_DATA,    0xfc);
-    outb(PIC_S_DATA,    0xff);
 
     outb(PIC_M_DATA,    0xf8);
-    outb(PIC_S_DATA,    0xbf);
+    outb(PIC_S_DATA,    0x3f);
 
     put_string("   pic_init done\n");
 }
@@ -61,12 +59,14 @@ general_intr_handler(uint8_t vec_nr)
     if(vec_nr== 0x27 || vec_nr == 0x2f){
         return;
     }
+    /*
     set_cursor(0);
     int cursor_pos=0;
     while(cursor_pos<2000){ 
         put_char(' ');
         cursor_pos++;
     }
+    */
     set_cursor(0);
     put_string("!!! exception message begin !!!\n");
     put_string(intr_name[vec_nr]);

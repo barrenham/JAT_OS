@@ -57,6 +57,8 @@ loader_start:
     int 10h
     ;清屏
 
+    mov ecx,    0xFFFFFFFF
+lp: loop        lp
 
     xor ebx,    ebx
     mov edx,    0x534d4150

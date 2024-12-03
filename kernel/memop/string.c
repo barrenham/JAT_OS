@@ -43,7 +43,7 @@ char* strcpy(char* dst_,const char* src_){
 uint32_t strlen(const char* str){
     ASSERT(str!=NULL);
     const char* p=str;
-    while(*p++);
+    while(*(p++)!='\0');
     return (p-str-1);
 }
 

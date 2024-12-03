@@ -80,3 +80,15 @@ uint32_t sprintf(char* buf,const char* format,...){
     va_end(args);
     return 0;
 }
+
+int32_t putchar(int32_t c){
+    char buf[2]={0};
+    buf[0]=c;
+    return write(stdout_no,buf,1);
+}
+
+int32_t puts(const char* s){
+    char buf[1024]={0};
+    strcpy(buf,s);
+    return write(stdout_no,buf,strlen(buf));
+}

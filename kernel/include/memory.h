@@ -5,6 +5,8 @@
 #include "bitmap.h"
 #include "list.h"
 
+
+
 enum pool_flags
 {
     PF_KERNEL=1,
@@ -54,6 +56,14 @@ void pfree(uint32_t pg_phy_addr);
 void mfree_page(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt);
 
 void sys_free(void* ptr);
+
+void* get_a_page_without_opvaddrbitmap(enum pool_flags pf,uint32_t vaddr);
+
+void mfree_page_avoid_vaddr_remove(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt);
+
+uint32_t get_phy_addr_start(struct pool* p);
+
+uint32_t get_phy_bitmap_ptr(struct pool* p);
 
 #define PG_P_1          1
 #define PG_P_0          0

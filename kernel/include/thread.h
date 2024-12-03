@@ -5,8 +5,16 @@
 #include "memory.h"
 
 #define PG_SIZE 4096
-#define default_prio 20
+#define default_prio 20  //second prio == process default_prio
 #define MAX_FILES_OPEN_PER_PROC 8
+
+#define FIRST_PRIO 30
+#define SECOND_PRIO 20
+#define THIRD_PRIO 10
+
+#define FIRST_TICKS 25
+#define SECOND_TICKS 15
+#define THIRD_TICKS  10
 
 typedef void thread_func(void*);
 typedef int16_t  pid_t;
@@ -60,6 +68,7 @@ struct thread_stack{
 struct task_struct{
     uint32_t*               self_kstack;
     pid_t                   pid;
+    pid_t                   parent_pid;
     enum    task_status     status;
     uint8_t                 priority;
     uint32_t                ticks;
@@ -86,6 +95,8 @@ void thread_block(enum task_status stat);
 
 void thread_unblock(struct task_struct* pthread);
 
+void thread_cleaner(void);
+
 void 
 thread_create(struct task_struct*pthread,
               thread_func function,
@@ -101,6 +112,12 @@ struct task_struct* thread_start(char* name,
                                  thread_func function,
                                  void* func_arg);
 
+void thread_unblock_idle(struct task_struct* pthread);
+
 void thread_yield(void);
+
+void thread_exit(void);
+
+pid_t allocate_pid(void);
 
 #endif

@@ -18,6 +18,8 @@ panic_spin(char* filename,
     put_string("\n");
     put_string("condition:");
     put_string((char*)condition);
+    put_string("\nline:");
+    put_int(line);
     put_string("\n");
     while(1);
 }

@@ -64,6 +64,12 @@ lib/file.o: fs/file.c
 lib/inode.o: fs/inode.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 
+lib/shell.o: shell/shell.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
+lib/pipe.o: device/pipe.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
+lib/exec.o: userprog/exec.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 all:
 	gcc -I include -m32 -c -o main.o main.c  -fno-stack-protector -nostdlib -nostdinc
 	nasm -f elf -o lib/print.o print.S
@@ -90,8 +96,11 @@ all:
 	gcc -m32 -c  fs/dir.c -I include -o lib/dir.o -fno-stack-protector -nostdlib -nostdinc
 	gcc -m32 -c fs/file.c -I include -o lib/file.o -fno-stack-protector -nostdlib -nostdinc
 	gcc -m32 -c fs/inode.c -I include -o lib/inode.o -fno-stack-protector -nostdlib -nostdinc
+	gcc -m32 -c shell/shell.c -I include -o lib/shell.o -fno-stack-protector -nostdlib -nostdinc
+	gcc -m32 -c device/pipe.c -I include -o lib/pipe.o -fno-stack-protector -nostdlib -nostdinc
+	gcc -m32 -c userprog/exec.c -I include -o lib/exec.o -fno-stack-protector -nostdlib -nostdinc
 
 install:
-	dd if=kernel.bin of=../hd60M.img bs=512 count=200 seek=9 conv=notrunc
+	dd if=kernel.bin of=../hd60M.img bs=512 count=300 seek=9 conv=notrunc
 
 	

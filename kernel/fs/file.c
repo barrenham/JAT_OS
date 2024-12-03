@@ -153,6 +153,7 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
 
     int32_t inode_no=inode_bitmap_alloc(cur_part);
     if(inode_no==-1){
+        sys_free(io_buf);
         printk("in file_create: allocate inode failed\n");
         return -1;
     }
@@ -194,6 +195,7 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
     
     list_push(&cur_part->open_inodes,&new_file_inode->inode_tag);
     new_file_inode->i_open_cnts=1;
+
 
     sys_free(io_buf);
 
@@ -250,12 +252,14 @@ int32_t file_open(uint32_t inode_no, uint8_t flag) {
     if (flag & O_WRONLY || flag & O_RDWR) {
         enum intr_status old_status = intr_disable(); // 禁用中断以进行安全检查。
         
-        if (!(*write_deny)) { // 如果当前没有写入拒绝。
+        if ((*write_deny)==False) { // 如果当前没有写入拒绝。
             *write_deny = True; // 设置写入拒绝标志。
             intr_set_status(old_status); // 恢复中断状态。
         } else { // 如果当前文件不能被写入。
             intr_set_status(old_status); // 恢复中断状态。
             printk("file cannot be write now, try again later\n"); // 输出错误信息。
+            inode_close(file_table[fd_idx].fd_inode);
+            file_table[fd_idx].fd_inode=NULL;
             return -1; // 返回 -1 表示失败。
         }
     }
@@ -277,10 +281,11 @@ int32_t file_close(struct file* file) {
     if (file == NULL) {
         return -1; // 返回 -1 表示失败。
     }
-    
+    if(file->fd_inode==NULL){
+        return -1;
+    }
     // 解除对 inode 的写入拒绝状态。
     file->fd_inode->write_deny = False;
-    
     // 关闭 inode 并释放相关资源。
     inode_close(file->fd_inode);
     file->fd_inode=NULL;
@@ -501,12 +506,14 @@ int32_t file_read(struct file* File,const void* buf,uint32_t offset,uint32_t buf
     uint32_t secondary_lba=0;
     for(int i=0;i<13;i++){
         all_blocks[i]=File->fd_inode->i_sectors[i];
+        if(all_blocks[i]==0){
+            break;
+        }
         if(i==12&&all_blocks[i]!=0){
             secondary_lba=all_blocks[i];
             ide_read(cur_part->my_disk,all_blocks[i],all_blocks+12,1);
         }
     }
-
     uint32_t blocks_passed=0;
     uint32_t in_block_offset=offset%(BLOCK_SIZE);
     uint32_t read_bytes=0;
@@ -621,6 +628,9 @@ rollback:
             left_to_remove-=remove_in_block;
             blocks_passed+=1;
         }
+    }
+    if(should_delete_some_block){
+        File->fd_inode->i_size=offset;
     }
     inode_sync(cur_part,File->fd_inode,io_buf);
     sys_free(io_buf);

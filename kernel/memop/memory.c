@@ -32,6 +32,14 @@ struct pool{
     uint32_t pool_size;
 };
 
+uint32_t get_phy_addr_start(struct pool* p){
+    return p->phy_addr_start;
+}
+
+uint32_t get_phy_bitmap_ptr(struct pool* p){
+    return &(p->pool_bitmap);
+}
+
 struct pool kernel_pool,user_pool;
 struct virtual_addr kernel_vaddr;
 
@@ -389,6 +397,38 @@ void pfree(uint32_t pg_phy_addr){
     bitmap_set(&mem_pool->pool_bitmap,bit_idx,0);
 }
 
+void mfree_page_avoid_vaddr_remove(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt){
+    uint32_t pg_phy_addr;
+    uint32_t vaddr=(uint32_t)_vaddr,page_cnt=0;
+    ASSERT(pg_cnt>=1&&vaddr%PG_SIZE==0);
+    pg_phy_addr=addr_v2p(vaddr);
+
+    ASSERT((pg_phy_addr%PG_SIZE==0)&&pg_phy_addr>=0x102000);
+
+    if(pg_phy_addr>=user_pool.phy_addr_start){
+        vaddr-=PG_SIZE;
+        while(page_cnt<pg_cnt){
+            vaddr+=PG_SIZE;
+            pg_phy_addr=addr_v2p(vaddr);
+            ASSERT((pg_phy_addr%PG_SIZE)==0&&pg_phy_addr>=user_pool.phy_addr_start);
+            pfree(pg_phy_addr);
+            page_table_pte_remove(vaddr);
+            page_cnt++;
+        }
+    }else{
+        vaddr-=PG_SIZE;
+        while(page_cnt<pg_cnt){
+            vaddr+=PG_SIZE;
+            pg_phy_addr=addr_v2p(vaddr);
+            ASSERT((pg_phy_addr%PG_SIZE)==0&&pg_phy_addr>=kernel_pool.phy_addr_start\
+            &&pg_phy_addr<user_pool.phy_addr_start);
+            pfree(pg_phy_addr);
+            page_table_pte_remove(vaddr);
+            page_cnt++;
+        }
+    }
+}
+
 void mfree_page(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt){
     uint32_t pg_phy_addr;
     uint32_t vaddr=(uint32_t)_vaddr,page_cnt=0;
@@ -457,4 +497,17 @@ void sys_free(void* ptr){
         }
         lock_release(&mem_pool->lock);
     }
+}
+
+void* get_a_page_without_opvaddrbitmap(enum pool_flags pf,uint32_t vaddr){
+    struct pool* mem_pool=pf&PF_KERNEL?&kernel_pool:&user_pool;
+    lock_acquire(&mem_pool->lock);
+    void* page_phyaddr=palloc(mem_pool);
+    if(page_phyaddr==NULL){
+        lock_release(&mem_pool->lock);
+        return NULL;
+    }
+    page_table_add((void*)vaddr,page_phyaddr);
+    lock_release(&mem_pool->lock);
+    return (void*)vaddr;
 }

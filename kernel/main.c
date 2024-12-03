@@ -13,12 +13,16 @@
 #include "include/process.h"
 #include "include/syscall.h"
 #include "include/fs.h"
+#include "include/shell.h"
+
+extern struct ide_channel channels[2];
 
 void k_thread_a(void* );
 void k_thread_b(void* );
 void u_prog_a (void);
 void u_prog_b (void);
 void u_prog_c (void);
+
 
 void serveProcess(void);
                                           
@@ -27,25 +31,47 @@ int main(void) {
 	put_string("I am kernel\n");
 	init_all();
 	intr_enable();
+	
 	char* buf=(char*)sys_malloc(0x200);
 	int fd0=sys_open("/welcome.txt",O_RDWR);
 	int cnt=0;
 	console_put_char('\n');
-	printf("hello hello hello\n",NULL);
+	printf("hello hello hello");
+	putchar('\n');
 	uint32_t ptr=0;
 	uint32_t read_cnt=0;
 	while((read_cnt=sys_read(fd0,buf,ptr,0x200))!=-1){
 		ptr+=read_cnt;
 		for(int i=0;i<(read_cnt);i++){
-			printf("%c",buf[i],NULL);
+			printf("%c",buf[i]);
 		}
 	}
 	free(buf);
-	process_execute(u_prog_c, "test_write_file");
-	process_execute(u_prog_b, "u_prog_b"); 
-	thread_start("k_thread_a", 31, k_thread_a, "argA ");
-	thread_start("k_thread_b", 31, k_thread_b, "argB ");  
-	process_execute(u_prog_a, "u_prog_a");
+	sys_close(fd0);
+
+	/*log in the first program*/
+	{
+		uint32_t file_size=100*512;
+		void* prog_buf=sys_malloc(file_size);
+		uint32_t sec_cnt=DIV_ROUND_UP(file_size,512);
+		struct disk* sda=&channels[0].devices[0];
+		ide_read(sda,400,prog_buf,sec_cnt);
+		int32_t fd=sys_open("/prog4",O_CREAT|O_RDWR);
+		if(fd!=-1){
+			if(sys_write(fd,prog_buf,0,file_size)==-1){
+				printk("file write error!\n");
+			}
+		}
+		closeFile(fd);
+	}
+
+	thread_start("thread_cleaner",FIRST_PRIO,thread_cleaner,NULL);
+	//process_execute(u_prog_a, "u_prog_a");
+	//process_execute(u_prog_c, "test_write_file");
+	process_execute(u_prog_b, "u_lazy"); 
+	/*
+	thread_start("k_thread_a", FIRST_PRIO, k_thread_a, "argA ");
+	thread_start("k_thread_b", FIRST_PRIO, k_thread_b, "argB ");  
 	void* addr1=malloc_page(PF_KERNEL,2);
 	void* addr2=malloc_page(PF_KERNEL,1);
 	console_put_string(" ADDR1 malloc addr:0x");
@@ -54,15 +80,20 @@ int main(void) {
 	console_put_int(addr2);
 	mfree_page(PF_KERNEL,addr1,2);
 	mfree_page(PF_KERNEL,addr2,1);
-	printf("\n",NULL);
-	sys_close(fd0);
+	printf("\n");
+	char* lptr=sys_malloc(102400);
+	sys_free(lptr);
+	*/
+	thread_start("shell",FIRST_PRIO,my_shell,NULL);
+	//process_execute(my_shell,"shell");
 	while(1){
-		printf("I'm thread main\n",NULL);
-		int cpu_delay = 10000000;
+		int cpu_delay = 1000000;
 		while(cpu_delay-->0);
 	}
 	return 0;
 }
+
+
 
 void k_thread_a(void* arg){
 	console_put_char('a');
@@ -76,16 +107,12 @@ void k_thread_a(void* arg){
 	console_put_char(',');
 	console_put_int((int)addr3);
 	console_put_char('\n');
-	int cpu_delay = 100000;
-	while(cpu_delay-->0);
 	sys_free(addr1);
 	sys_free(addr2);
 	sys_free(addr3);
-	while(1){
-		printf("I'm thread 1\n",NULL);
-		int cpu_delay = 10000000;
-		while(cpu_delay-->0);
-	}
+	printf("I'm thread 1 ");
+	int cpu_delay = 1000000;
+	while(cpu_delay-->0);
 }
 
 void k_thread_b(void* arg){
@@ -100,64 +127,56 @@ void k_thread_b(void* arg){
 	console_put_char(',');
 	console_put_int((int)addr3);
 	console_put_char('\n');
-	int cpu_delay = 100000;
-	while(cpu_delay-->0);
 	sys_free(addr1);
 	sys_free(addr2);
 	sys_free(addr3);
-	while(1){
-		printf("I'm thread 2\n",NULL);
-		int cpu_delay = 10000000;
-		while(cpu_delay-->0);
-	}
+	printf("I'm thread 2 ");
+	int cpu_delay = 1000000;
+	while(cpu_delay-->0);
 }
 
 void u_prog_a(void) {
-	//printf("hello, something has occured!\n",NULL);
-	void* addr1 = malloc(256);
-	void* addr2 = malloc(255);
-	void* addr3 = malloc(254);
-	printf(" prog_a malloc addr:0x%x, 0x%x, 0x%x\n", (int)addr1,(int)addr2,(int)addr3);
-	int cpu_delay = 100000;
-	while(cpu_delay-->0);
-	free(addr1);
-	free(addr2);
-	free(addr3);
-	while(1){
-		printf("I'm program 1\n",NULL);
-		int cpu_delay = 10000000;
-		while(cpu_delay-->0);
+	if(fork()==0){
+		process_exit();
 	}
+	if(fork()==0){
+		process_exit();
+	}
+	int fd[2];
+	pipe(fd);
+	write(fd[0],"hello, child!\n",15);
+	if(fork()==0){
+		char buf[30]={0};
+		read(fd[1],buf,30);
+		printf("%s",buf);
+		process_exit();
+	}
+	process_exit();
 }
 
 void u_prog_b(void) {
-	void* addr1 = malloc(256);
-	void* addr2 = malloc(255);
-	void* addr3 = malloc(254);
-	printf(" prog_b malloc addr:0x%x, 0x%x, 0x%x\n", (int)addr1,(int)addr2,(int)addr3);
-	int cpu_delay = 100000;
-	while(cpu_delay-->0);
-	free(addr1);
-	free(addr2);
-	free(addr3);
-	while(1){
-		printf("I'm program 2\n",NULL);
-		int cpu_delay = 10000000;
-		while(cpu_delay-->0);
-	}
+	while(1);
+	process_exit();
 }
 
 void u_prog_c(void){
-	printf("I'm test_write_file\n",NULL);
+	printf("I'm test_write_file\n");
+	/*
 	int32_t fd=openFile("/hello.txt",O_RDWR);
-	for(int i=0;i<10;i++){
-		write(fd,"ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",60);
-		printf("%d  ",i);
-	}
 	seekp(fd,0,SEEK_SET);
-	char buf[60];
-	while(read(fd,buf,60)>=0){
-		printf("%s",buf,NULL);
+	*/
+	char buf[200];
+	int read_cnt=0;
+	int32_t fd=openFile("/hello.txt",O_RDONLY);
+	printf("filesize:%d B\n",getfilesize(fd));
+	seekp(fd,2000,SEEK_SET);
+	remove_some_cotent(fd,70000);
+	seekp(fd,0,SEEK_SET);
+	while((read_cnt=read(fd,buf,200))>=0){
+		for(int i=0;i<read_cnt;i++){
+			printf("%c",buf[i]);
+		}
 	}
-	while(1);
+	//closeFile(fd);
+	process_exit();
 }

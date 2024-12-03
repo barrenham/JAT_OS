@@ -22,4 +22,8 @@ void create_user_vaddr_bitmap(struct task_struct* user_prog);
 
 void process_execute(void* filename,char* name);
 
+pid_t sys_fork(void);
+
+void exit_process(void);
+
 #endif

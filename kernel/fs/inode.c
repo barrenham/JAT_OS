@@ -13,6 +13,8 @@
 #include "../include/memory.h"
 #include "../include/string.h"
 
+extern struct partition* cur_part;
+
 struct inode_position{
     bool two_sec;
     uint32_t sec_lba;
@@ -71,14 +73,13 @@ void inode_sync(struct partition* part, struct inode* inode, void* io_buf) {
     pure_inode.i_open_cnts = 0;
     pure_inode.write_deny = False;
     pure_inode.inode_tag.prev = pure_inode.inode_tag.next = NULL;
-
     char* inode_buf = (char*)io_buf; // 将 I/O 缓冲区转换为字符指针。
     if (inode_pos.two_sec) { // 如果 inode 跨越两个扇区。
         ide_read(part->my_disk, inode_pos.sec_lba, inode_buf, 2); // 从磁盘读取两个扇区。
         memcpy((inode_buf + inode_pos.off_size), &pure_inode, sizeof(struct inode)); // 更新 inode 数据。
         ide_write(part->my_disk, inode_pos.sec_lba, inode_buf, 2); // 将更新后的数据写回磁盘。
     } else { // 如果 inode 仅占用一个扇区。
-        ide_read(part->my_disk, inode_pos.sec_lba, inode_buf, 1); // 从磁盘读取一个扇区。
+        ide_read(part->my_disk, inode_pos.sec_lba, inode_buf, 1); // 从磁盘读取一个扇区
         memcpy((inode_buf + inode_pos.off_size), &pure_inode, sizeof(struct inode)); // 更新 inode 数据。
         ide_write(part->my_disk, inode_pos.sec_lba, inode_buf, 1); // 将更新后的数据写回磁盘。
     }
@@ -170,17 +171,20 @@ void inode_close(struct inode* inode) {
     if (--inode->i_open_cnts == 0) {
         // 从打开的 inode 列表中移除该 inode。
         list_remove(&inode->inode_tag);
-        
         // 获取当前正在运行的线程。
         struct task_struct* cur = running_thread();
+        /*
         uint32_t* cur_pagedir_bak = cur->pgdir;
         cur->pgdir = NULL; // 将页目录设置为 NULL 以进行内存释放。
-
+        */
+        void* io_buf=sys_malloc(1024);
+        inode_sync(cur_part,inode,io_buf);
+        sys_free(io_buf);
         // 释放 inode 的内存。
         sys_free(inode);
         
         // 恢复原始的页目录。
-        cur->pgdir = cur_pagedir_bak;
+        //cur->pgdir = cur_pagedir_bak;
     }
     
     // 恢复之前的中断状态。

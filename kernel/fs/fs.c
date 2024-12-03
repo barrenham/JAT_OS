@@ -12,6 +12,9 @@
 #include "../include/memory.h"
 #include "../include/string.h"
 #include "../include/fault.h"
+#include "../include/ioqueue.h"
+#include "../include/keyboard.h"
+#include "../include/pipe.h"
 
 extern uint8_t channel_cnt;
 extern struct ide_channel channels[2];
@@ -20,10 +23,11 @@ extern struct dir root_dir;
 extern struct partition* cur_part;
 extern struct file file_table[MAX_FILE_OPEN];
 
-static uint32_t fd_local2global(uint32_t local_fd){
+
+uint32_t fd_local2global(uint32_t local_fd){
     struct task_struct* cur=running_thread();
     int32_t global_fd=cur->fd_table[local_fd];
-    ASSERT(global_fd>=0&&global_fd<MAX_FILE_OPEN);
+    //ASSERT(global_fd>=0&&global_fd<MAX_FILE_OPEN);
     return (uint32_t)global_fd;
 }
 
@@ -356,9 +360,17 @@ int32_t sys_open(const char* pathname,uint8_t flags){
 int32_t sys_close(int32_t fd){
     int32_t ret=-1;
     if(fd>2){
-        uint32_t _fd=fd_local2global(fd);
-        ret=file_close(&file_table[_fd]);
-        running_thread()->fd_table[fd]=-1;
+        if(is_pipe(fd)){
+            if(--file_table[fd_local2global(fd)].fd_pos==0){
+                mfree_page(PF_KERNEL,file_table[fd_local2global(fd)].fd_inode,1);
+            }
+            running_thread()->fd_table[fd]=-1;
+            ret=0;
+        }else{
+            uint32_t _fd=fd_local2global(fd);
+            ret=file_close(&file_table[_fd]);
+            running_thread()->fd_table[fd]=-1;
+        }
     }
     return ret;
 }
@@ -411,13 +423,15 @@ int32_t sys_opendir(const char* pathname,uint8_t flags){
 }
 
 int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
-    /*
-        需要添加其他内容，比如说文件指针
-    */
     uint32_t _fd=fd_local2global(fd);
-    int32_t result=sys_write(fd,buf,file_table[_fd].fd_pos,bufsize);
-    if(result!=-1){
-        file_table[_fd].fd_pos+=bufsize;
+    int32_t result=-1;
+    if(!is_pipe(fd)){
+        result=sys_write(fd,buf,file_table[_fd].fd_pos,bufsize);
+        if(result!=-1){
+            file_table[_fd].fd_pos+=bufsize;
+        }
+    }else{
+        result=pipe_write(fd,buf,bufsize);
     }
     return result;
 }
@@ -432,7 +446,7 @@ int32_t sys_write(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
         ASSERT(bufsize<1024);
         memcpy(tmp_buf,buf,bufsize);
         console_put_string(tmp_buf);
-        return bufsize;
+        return -1;
     }
     uint32_t _fd=fd_local2global(fd);
     struct file* wr_file=&file_table[_fd];
@@ -446,11 +460,14 @@ int32_t sys_write(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
 }
 
 int32_t sys_read(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
-    if(fd<0||fd==stdout_no){
-        printk("sys_write: fd error\n");
+    if(fd<0){
+        printk("sys_read: fd error\n");
         return -1;
     }
     ASSERT(buf!=NULL);
+    if(fd==stdin_no){
+
+    }
     uint32_t _fd=fd_local2global(fd);
     return file_read(&file_table[_fd],buf,offset,bufsize);
 }
@@ -460,16 +477,24 @@ int32_t sys_seekp(int32_t fd,int32_t offset,enum whence wh_type){
     switch(wh_type){
         case SEEK_SET:
         {
-            file_table[_fd].fd_pos=offset;
+            //ASSERT(offset<=file_table[_fd].fd_inode->i_size);
+            if(offset>file_table[_fd].fd_inode->i_size){
+                file_table[_fd].fd_pos=file_table[_fd].fd_inode->i_size;
+            }else{
+                file_table[_fd].fd_pos=offset;
+            }
+            
             break;
         }
         case SEEK_CUR:
         {
+            ASSERT(offset+file_table[_fd].fd_pos<=file_table[_fd].fd_inode->i_size);
             file_table[_fd].fd_pos+=offset;
             break;
         }
         case SEEK_END:
         {
+            ASSERT(offset<=0);
             file_table[_fd].fd_pos=offset+file_table[_fd].fd_inode->i_size;
             break;
         }
@@ -538,7 +563,7 @@ int32_t sys_remove(const char* pathname){
 
     uint32_t secondary_lba=0;
     uint32_t all_blocks[140]={0};
-    uint32_t io_buf[1024];
+    uint8_t* io_buf=(uint8_t*)sys_malloc(BLOCK_SIZE);
     for(int i=0;i<13;i++){
         all_blocks[i]=parent_inode->i_sectors[i];
         if(i==12&&all_blocks[i]!=0){
@@ -566,6 +591,7 @@ int32_t sys_remove(const char* pathname){
     file_remove_some_content(&File,0,File.fd_inode->i_size);
     inode_delete(cur_part,inode_no,io_buf);
     list_remove(&File.fd_inode->inode_tag);
+    sys_free(io_buf);
     return 0;
 }
 
@@ -589,7 +615,7 @@ int32_t sys_dir_list(const char*pathname){
     struct inode* dir=inode_open(cur_part,inode_no);
     uint32_t secondary_lba;
     uint32_t* all_blocks=(uint32_t*)sys_malloc(140*sizeof(uint32_t));
-    uint8_t io_buf[512];
+    uint8_t* io_buf=(uint8_t*)sys_malloc(BLOCK_SIZE);
     for(int i=0;i<13;i++){
         all_blocks[i]=dir->i_sectors[i];
         if(i==12&&all_blocks[i]!=0){
@@ -603,15 +629,19 @@ int32_t sys_dir_list(const char*pathname){
         int cnt=0;
         printf("\n",NULL);
         while((cnt<(BLOCK_SIZE/(sizeof(struct dir_entry))))){
-            if(dirE->filename[0]!='\0')
+            if(dirE->filename[0]!='\0'){
+                dirE->filename[MAX_FILE_NAME_LEN-1]='\0';
                 printf("%s ",dirE->filename);
+            }
             dirE++;
             cnt++;
         }
     }
+    putchar('\n');
     inode_close(dir);
     dir_close(searched_record.parent_dir);
     sys_free(all_blocks);
+    sys_free(io_buf);
     return 0;
 }
 
@@ -700,24 +730,43 @@ int32_t user_mkdir(const char* pathname){
 }
 
 int32_t user_file_read(int32_t fd,const char* buf,uint32_t bufsize){
+    if(fd==stdin_no){
+        char* buffer=buf;
+        uint32_t bytes_read=0;
+        while(bytes_read<bufsize){
+            *buffer=ioq_getchar(&kbd_buf);
+            bytes_read++;
+            buffer++;
+        }
+        return (bytes_read==0?-1:(int32_t)bytes_read);
+    }
+    if(fd<=0){
+        return GENERAL_FAULT;
+    }
     int32_t _fd=fd_local2global(fd);
-    if(_fd==GENERAL_FAULT){
+    if(_fd==FAILED_FD){
         return CANNOT_FIND_FD_IN_PROCESS_STACK;
     }
     if(file_table[_fd].fd_inode==NULL){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
-    int32_t read_cnt=sys_read(fd,buf,file_table[_fd].fd_pos,bufsize);
-    if(read_cnt==GENERAL_FAULT){
-        return CANNOT_READ_FILE;
+    int32_t read_cnt=-1;
+    if(file_table[_fd].fd_flag!=PIPE_FLAG){
+        read_cnt=sys_read(fd,buf,file_table[_fd].fd_pos,bufsize);
+        if(read_cnt==GENERAL_FAULT){
+            return CANNOT_READ_FILE;
+        }
+        file_table[_fd].fd_pos+=read_cnt;
+    }else{
+        read_cnt=pipe_read(fd,buf,bufsize);
     }
-    file_table[_fd].fd_pos+=read_cnt;
     return read_cnt;
 }
 
 int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type){
     int32_t _fd=fd_local2global(fd);
-    if(_fd==GENERAL_FAULT){
+    ASSERT(!is_pipe(fd));
+    if(_fd==FAILED_FD){
         return CANNOT_FIND_FD_IN_PROCESS_STACK;
     }
     if(file_table[_fd].fd_inode==NULL){
@@ -729,17 +778,65 @@ int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type){
 
 int32_t user_file_remove_some_content(int32_t fd,int32_t size){
     int32_t _fd=fd_local2global(fd);
-    if(_fd==GENERAL_FAULT){
+    if(_fd==FAILED_FD){
         return CANNOT_FIND_FD_IN_PROCESS_STACK;
     }
     if(file_table[_fd].fd_inode==NULL){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
-
-    int32_t result=sys_remove_some_content(fd,file_table[_fd].fd_pos,size);
+    int32_t _size=((file_table[_fd].fd_pos+size)>=file_table[_fd].fd_inode->i_size)?(file_table[_fd].fd_inode->i_size-file_table[_fd].fd_pos):(size);
+    int32_t result=sys_remove_some_content(fd,file_table[_fd].fd_pos,_size);
     if(result==GENERAL_FAULT){
         return CANNOT_REMOVE_SOME_COTENT_FROM_FILE;
     }
     file_table[_fd].fd_pos+=size;
     return size;
+}
+
+int32_t user_delete(const char* pathname){
+    int32_t result=sys_remove(pathname);
+    if(result==-1){
+        result=sys_delete_dir(pathname);
+    }
+    return result;
+}
+
+int32_t user_file_close(int32_t fd){
+    if(fd<=2){
+        return CANNOT_FIND_FD_IN_PROCESS_STACK;
+    }
+    int32_t _fd=fd_local2global(fd);
+    if(_fd==FAILED_FD){
+        return CANNOT_FIND_FD_IN_PROCESS_STACK;
+    }
+    if(file_table[_fd].fd_inode==NULL){
+        return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
+    }
+    int32_t result=sys_close(fd);
+    return result;
+}
+
+filesize sys_get_file_size(file_descriptor fd){
+    file_descriptor _fd=fd_local2global(fd);
+    if(_fd==FAILED_FD){
+        return GENERAL_FAULT;
+    }
+    ASSERT(file_table[_fd].fd_inode!=NULL);
+    return file_table[_fd].fd_inode->i_size;
+}
+
+
+
+enum file_types sys_get_file_attribute(const char* pathname){
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+    if(found==False){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    return searched_record.file_type;
 }
