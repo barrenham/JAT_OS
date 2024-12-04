@@ -192,11 +192,11 @@ static void intr_keyboard_handler(void){
             char inputchar='?';
             switch(scancode){
                 case up_arrow_make:{
-                    inputchar=72;
+                    inputchar=0x80;
                     break;
                 }
                 case down_arrow_make:{
-                    inputchar=80;
+                    inputchar=0x81;
                     break;
                 }
                 case left_arrow_make:{
