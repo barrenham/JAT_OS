@@ -2,5 +2,4 @@ bochsrc.disk
 *.o
 .vscode
 *.bin
-*.img
 *.txt

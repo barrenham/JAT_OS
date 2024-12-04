@@ -69,7 +69,7 @@ static char cmd_line_cat_bat[cmd_len] = {0};
 static char cmd_line_exec_bat[cmd_len] = {0};
 static char cmd_line_rm_bat[cmd_len] = {0};
 static char cmd_line_touch_bat[cmd_len] = {0};
-static char cmd_line_vim_bat[cmd_len] = {0};
+static char cmd_line_edit_bat[cmd_len] = {0};
 
 static struct history cmd_history;
 
@@ -648,10 +648,16 @@ void my_shell(void)
             strcpy(cmd_line_exec_bat,cmd_line);
             process_execute(((uint32_t)process_program),"loader");
         }
+        if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
+        {
+            strcpy(cmd_line_touch_bat, cmd_line);
+            thread_start("touch", SECOND_PRIO, process_touch_command, (cmd_line_touch_bat));
+            thread_wait();
+        }
         if (cmd_line[0] == 'e' && cmd_line[1] == 'd' && cmd_line[2] == 'i' && cmd_line[3] == 't')
         {
-            strcpy(cmd_line_vim_bat, cmd_line);
-            thread_start("edit", SECOND_PRIO, process_edit_command, (cmd_line_vim_bat));
+            strcpy(cmd_line_edit_bat, cmd_line);
+            thread_start("edit", SECOND_PRIO, process_edit_command, (cmd_line_edit_bat));
             thread_wait();
         }
         if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
