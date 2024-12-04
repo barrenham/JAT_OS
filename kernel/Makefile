@@ -70,6 +70,8 @@ lib/pipe.o: device/pipe.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 lib/exec.o: userprog/exec.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
+lib/editor.o: editor/editor.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 lib/history.o: shell/history.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 

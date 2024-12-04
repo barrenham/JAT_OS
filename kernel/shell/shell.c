@@ -68,6 +68,8 @@ static char cmd_line_ps_bat[cmd_len]={0};
 static char cmd_line_cat_bat[cmd_len]={0};
 static char cmd_line_exec_bat[cmd_len]={0};
 static char cmd_line_rm_bat[cmd_len]={0};
+static char cmd_line_touch_bat[cmd_len]={0};
+static char cmd_line_vim_bat[cmd_len]={0};
 
 static struct history cmd_history;
 
@@ -523,40 +525,37 @@ static void process_clear_command(void *_cmd_line)
 
 static void process_touch_command(void *_cmd_line)
 {
-    // char *cmd_line = _cmd_line;
-    // int i = 5;
-    // while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
-    //     i++;
-    // if (cmd_line[i] == '\0')
-    // {
-    //     printf("Usage: touch <filename>\n");
-    //     return;
-    // }
-    // char buf[MAX_PATH_LENGTH] = {0};
-    // int idx = 0;
-    // strcpy(buf, cwd_cache);
-    // idx = strlen(buf);
-    // if (buf[idx - 1] != '/')
-    //     buf[idx++] = '/';
-    // while (cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
-    //     buf[idx++] = cmd_line[i++];
-    // buf[idx] = '\0';
-    // printf("buf:%s\n", buf);
-    // printf("cwd_cache:%s\n", cwd_cache);
-    // printf("get_file_type:%d\n", get_file_type(buf));
-    // if (get_file_type(buf) != 4294967295)
-    // {
-    //     printf("File already exists: %s\n", buf);
-    //     return;
-    // }
-    // int fd = openFile(buf, O_CREAT);
-    // if (fd == -1)
-    //     printf("Failed to create file: %s\n", buf);
-    // else
-    // {
-    //     printf("File created: %s\n", buf);
-    //     closeFile(fd);
-    // }
+    char *cmd_line = _cmd_line;
+    int i = 5;
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    if (cmd_line[i] == '\0')
+    {
+        printf("Usage: touch <filename>\n\n");
+        return;
+    }
+    char buf[MAX_PATH_LENGTH] = {0};
+    int idx = 0;
+    strcpy(buf, cwd_cache);
+    idx = strlen(buf);
+    if (buf[idx - 1] != '/')
+        buf[idx++] = '/';
+    while (cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        buf[idx++] = cmd_line[i++];
+    buf[idx] = '\0';
+    if (get_file_type(buf) == FT_REGULAR || get_file_type(buf) == FT_DIRECTORY || get_file_type(buf) == FT_UNKNOWN)
+    {
+        printf("File already exists: %s\n", buf);
+        return;
+    }
+    int fd = openFile(buf, O_CREAT);
+    if (fd == -1)
+        printf("Failed to create file: %s\n", buf);
+    else
+    {
+        printf("File created: %s\n", buf);
+        closeFile(fd);
+    }
 }
 
 static void process_vim_command(void *_cmd_line)
@@ -586,12 +585,6 @@ static void process_vim_command(void *_cmd_line)
     strcat(filepath, filename);
     editor_main(filepath);
 }
-
-void my_shell(void)
-{
-    cwd_cache[0] = '/';
-    while (1)
-    {
 
 void my_shell(void){
     history_init(&cmd_history);
