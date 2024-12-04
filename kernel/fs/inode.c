@@ -168,7 +168,7 @@ void inode_close(struct inode* inode) {
         return;
     }
     // 减少打开计数，如果计数减至 0。
-    if (--inode->i_open_cnts == 0) {
+    if ((--inode->i_open_cnts) == 0) {
         // 从打开的 inode 列表中移除该 inode。
         list_remove(&inode->inode_tag);
         // 获取当前正在运行的线程。

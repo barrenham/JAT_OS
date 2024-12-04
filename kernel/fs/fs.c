@@ -340,6 +340,7 @@ int32_t sys_open(const char* pathname,uint8_t flags){
         {
             if(found){
                 printk("already have file %s\n",(strrchr(searched_record.searched_path,'/')+1));
+                dir_close(searched_record.parent_dir);
                 return -1;
             }
             printk("creating file\n");

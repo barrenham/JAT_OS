@@ -151,7 +151,7 @@ static void process_kill_command(void* _cmd_line){
     struct list_elem* elem=thread_all_list.head.next;
     while(elem->next!=NULL){
         struct task_struct* pcb=elem2entry(struct task_struct,all_list_tag,elem);
-        if(pcb==running_thread()||(!strcmp(pcb->name,"thread_cleaner"))){
+        if(pcb==running_thread()||(!strcmp(pcb->name,"thread_cleaner"))||(!strcmp(pcb->name,"shell"))){
             elem=elem->next;
             continue;
         }
@@ -440,6 +440,7 @@ void my_shell(void){
     history_init(&cmd_history);
     cwd_cache[0]='/';
     while(1){
+        sema_init(&(running_thread()->waiting_sema),0);
         print_prompt();
         memset(cmd_line,0,cmd_len);
         readline(cmd_line,cmd_len);
@@ -500,7 +501,6 @@ void my_shell(void){
             thread_start("rm",SECOND_PRIO,process_rm_command,(cmd_line_rm_bat));
             thread_wait();
         }
-        sema_init(&(running_thread()->waiting_sema),0);
         history_push(&cmd_history,cmd_line);
     }
 }
