@@ -10,6 +10,9 @@
 #include "../include/process.h"
 #include "../include/pipe.h"
 #include "../include/exec.h"
+#include "../include/keyboard.h"
+
+extern struct ioqueue kbd_buf;
 
 #define _syscall0(NUMBER) ({    \
     int retval;                 \
@@ -96,6 +99,7 @@ void syscall_init(void){
     syscall_table[SYS_GETFILEATTRIBUTE]=sys_get_file_attribute;
     syscall_table[SYS_PIPE]=sys_pipe;
     syscall_table[SYS_EXEC]=sys_execv;
+    syscall_table[SYS_GETCHAR]=sys_getchar;
     put_string("syscall_init done\n");
 }
 
@@ -198,4 +202,8 @@ int32_t pipe(int fd[2]){
 
 int32_t execv(const char* filepath,char** argv){
     return _syscall2(SYS_EXEC,filepath,argv);
+}
+
+char getchar(){
+    return _syscall0(SYS_GETCHAR);
 }

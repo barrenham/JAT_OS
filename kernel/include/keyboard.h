@@ -5,5 +5,6 @@
 extern struct ioqueue kbd_buf;
 
 void keyboard_init();
+char sys_getchar();
 
 #endif

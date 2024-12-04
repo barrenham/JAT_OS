@@ -74,7 +74,7 @@ void tss_init(){
 
     *((struct gdt_desc*)0xc000062b)=make_gdt_desc(
     (uint32_t*)0,
-    0xc0fff,
+    0xcffff,
     GDT_CODE_ATTR_LOW_DPL3,
     GDT_ATTR_HIGH
     );

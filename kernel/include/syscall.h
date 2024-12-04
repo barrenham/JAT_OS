@@ -24,7 +24,8 @@ enum SYSCALL_NR{
     SYS_FORK,
     SYS_GETFILEATTRIBUTE,
     SYS_PIPE,
-    SYS_EXEC
+    SYS_EXEC,
+    SYS_GETCHAR
 };
 
 uint32_t    sys_getpid(void);

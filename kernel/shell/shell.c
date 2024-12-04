@@ -14,6 +14,8 @@
 #include "../include/exec.h"
 #include "../include/syscall.h"
 #include "../include/process.h"
+#include "../include/history.h"
+
 #include "../include/editor.h"
 #include "../include/print.h"
 
@@ -60,18 +62,17 @@ static int atoi_10(const char *str)
 }
 
 extern struct list thread_all_list;
-static char cmd_line[cmd_len] = {0};
-static char cmd_line_kill_bat[cmd_len] = {0};
-static char cmd_line_ps_bat[cmd_len] = {0};
-static char cmd_line_cat_bat[cmd_len] = {0};
-static char cmd_line_exec_bat[cmd_len] = {0};
-static char cmd_line_rm_bat[cmd_len] = {0};
-static char cmd_line_vim_bat[cmd_len] = {0};
-static char cmd_line_touch_bat[cmd_len] = {0};
+static char cmd_line[cmd_len]={0};
+static char cmd_line_kill_bat[cmd_len]={0};
+static char cmd_line_ps_bat[cmd_len]={0};
+static char cmd_line_cat_bat[cmd_len]={0};
+static char cmd_line_exec_bat[cmd_len]={0};
+static char cmd_line_rm_bat[cmd_len]={0};
 
-static bool isChar(c)
-{
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+static struct history cmd_history;
+
+static bool isChar(c){
+    return (c>='A'&&c<='Z')||(c>='a'&&c<='z');
 }
 
 static bool isDigit(c)
@@ -325,35 +326,64 @@ static void process_cd_command(void *_cmd_line)
     }
 }
 
-static void readline(char *buf, int32_t count)
-{
-    ASSERT(buf != NULL && count > 0);
-    char *pos = buf;
-    while (read(stdin_no, pos, 1) != -1 && (pos - buf) < count)
-    {
-        switch (*pos)
-        {
-        case '\n':
-        case '\r':
-        {
-            *pos = 0;
-            putchar('\n');
-            return;
-        }
-        case '\b':
-        {
-            if (buf[0] != '\b')
+
+static void readline(char* buf,int32_t count){
+    ASSERT(buf!=NULL&&count>0);
+    char* pos=buf;
+    while(read(stdin_no,pos,1)!=-1&&(pos-buf)<count){
+        switch(*pos){
+            case '\n':
+            case '\r':
             {
-                --pos;
-                putchar('\b');
+                *pos=0;
+                putchar('\n');
+                return;
             }
-            break;
-        }
-        default:
-        {
-            putchar(*pos);
-            pos++;
-        }
+            case '\b':
+            {
+                if(buf[0]!='\b'){
+                    --pos;
+                    putchar('\b');
+                }
+                break;
+            }
+            case 72:
+            {
+                char* history_cmd_ptr=history_get_prev(&cmd_history);
+                if(history_cmd_ptr!=NULL){
+                    strcpy(buf,history_cmd_ptr);
+                    while(pos!=buf){
+                        putchar('\b');
+                        pos--;
+                    }
+                    for(int i=0;i<strlen(history_cmd_ptr);i++){
+                        putchar(history_cmd_ptr[i]);
+                        pos++;
+                    }
+                }
+                break;
+            }
+            case 80:
+            {
+                char* history_cmd_ptr=history_get_next(&cmd_history);
+                if(history_cmd_ptr!=NULL){
+                    strcpy(buf,history_cmd_ptr);
+                    while(pos!=buf){
+                        putchar('\b');
+                        pos--;
+                    }
+                    for(int i=0;i<strlen(history_cmd_ptr);i++){
+                        putchar(history_cmd_ptr[i]);
+                        pos++;
+                    }
+                }
+                break;
+            }
+            default:
+            {
+                putchar(*pos);
+                pos++;
+            }
         }
     }
 }
@@ -562,6 +592,11 @@ void my_shell(void)
     cwd_cache[0] = '/';
     while (1)
     {
+
+void my_shell(void){
+    history_init(&cmd_history);
+    cwd_cache[0]='/';
+    while(1){
         print_prompt();
         memset(cmd_line, 0, cmd_len);
         readline(cmd_line, cmd_len);
@@ -653,5 +688,6 @@ void my_shell(void)
             thread_start("vim", SECOND_PRIO, process_vim_command, (cmd_line_vim_bat));
             thread_wait();
         }
+        history_push(&cmd_history,cmd_line);
     }
 }
