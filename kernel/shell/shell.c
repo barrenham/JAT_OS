@@ -286,7 +286,7 @@ static void readline(char* buf,int32_t count){
                 }
                 break;
             }
-            case 72:
+            case ((char)0x80):
             {
                 char* history_cmd_ptr=history_get_prev(&cmd_history);
                 if(history_cmd_ptr!=NULL){
@@ -302,7 +302,7 @@ static void readline(char* buf,int32_t count){
                 }
                 break;
             }
-            case 80:
+            case ((char)0x81):
             {
                 char* history_cmd_ptr=history_get_next(&cmd_history);
                 if(history_cmd_ptr!=NULL){
@@ -494,13 +494,13 @@ void my_shell(void){
         if(cmd_line[0]=='e'&&cmd_line[1]=='x'&&cmd_line[2]=='e'&&cmd_line[3]=='c'){
             strcpy(cmd_line_exec_bat,cmd_line);
             process_execute(((uint32_t)process_program),"loader");
-            thread_wait();
         }
         if(cmd_line[0]=='r'&&cmd_line[1]=='m'){
             strcpy(cmd_line_rm_bat,cmd_line);
             thread_start("rm",SECOND_PRIO,process_rm_command,(cmd_line_rm_bat));
             thread_wait();
         }
+        sema_init(&(running_thread()->waiting_sema),0);
         history_push(&cmd_history,cmd_line);
     }
 }
