@@ -19,7 +19,7 @@
 00000000000i[      ]   Sound support: no
 00000000000i[      ]   USB support: no
 00000000000i[      ]   VGA extension support: vbe
-00000000000i[MEM0  ] allocated memory at 0x7ac1a8200010. after alignment, vector=0x7ac1a8201000
+00000000000i[MEM0  ] allocated memory at 0x74fcda800010. after alignment, vector=0x74fcda801000
 00000000000i[MEM0  ] 256.00MB
 00000000000i[MEM0  ] mem block size = 0x00020000, blocks=2048
 00000000000i[MEM0  ] rom at 0xfffe0000/131072 ('/home/barrenham/bochs/share/bochs/BIOS-bochs-latest')
@@ -29,7 +29,7 @@
 00000000000i[DEV   ] PIIX3 PCI-to-ISA bridge present at device 1, function 0
 00000000000i[PLUGIN] init_dev of 'cmos' plugin device by virtual method
 00000000000i[CMOS  ] Using local time for initial clock
-00000000000i[CMOS  ] Setting initial clock to: Tue Dec  3 19:40:17 2024 (time0=1733226017)
+00000000000i[CMOS  ] Setting initial clock to: Wed Dec  4 11:27:38 2024 (time0=1733282858)
 00000000000i[PLUGIN] init_dev of 'dma' plugin device by virtual method
 00000000000i[DMA   ] channel 4 used by cascade
 00000000000i[PLUGIN] init_dev of 'pic' plugin device by virtual method
@@ -52411,4 +52411,4 @@
 00007881145e[HD    ] IO read(0x01f0) with drq == 0: last command was 20h
 00007881149e[HD    ] IO read(0x01f0) with drq == 0: last command was 20h
 00007881153e[HD    ] IO read(0x01f0) with drq == 0: last command was 20h
-00045439200i[XGUI  ] charmap update. Font is 9 x 16
+00045599700i[XGUI  ] charmap update. Font is 9 x 16

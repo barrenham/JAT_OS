@@ -37,6 +37,12 @@ struct ioqueue kbd_buf;
 #define ctrl_r_break 0xe09d
 #define caps_lock_make 0x3a
 
+#define up_arrow_make    0xe048
+#define down_arrow_make  0xe050
+#define left_arrow_make  0xe04b
+#define right_arrow_make 0xe04d
+
+
 bool ctrl_status = False,shift_status = False,alt_status = False,caps_lock_status = False,ext_scancode = False;
 
 
@@ -99,7 +105,7 @@ char keymap[][2] = {
 /* 0x37 */	{'*',	'*'},    	
 /* 0x38 */	{alt_l_char, alt_l_char},
 /* 0x39 */	{' ',	' '},		
-/* 0x3A */	{caps_lock_char, caps_lock_char}
+/* 0x3A */	{caps_lock_char, caps_lock_char},       
 };
 
 static bool is_kbd_buffer_empty() {
@@ -182,7 +188,31 @@ static void intr_keyboard_handler(void){
                 caps_lock_status=!caps_lock_status;
             }
         }else{
-            put_string("unknown key\n");
+            //put_string("unknown key\n");
+            char inputchar='?';
+            switch(scancode){
+                case up_arrow_make:{
+                    inputchar=72;
+                    break;
+                }
+                case down_arrow_make:{
+                    inputchar=80;
+                    break;
+                }
+                case left_arrow_make:{
+                    inputchar='<';
+                    break;
+                }
+                case right_arrow_make:{
+                    inputchar='>';
+                    break;
+                }
+            }
+            if(!ioq_full(&kbd_buf)){
+                ioq_putchar(&kbd_buf,inputchar);
+            }
+            //put_char(cur_char);
+            continue;
         }
 
     }
@@ -194,4 +224,8 @@ void keyboard_init(){
     ioqueue_init(&kbd_buf);
     register_handler(0x21,intr_keyboard_handler);
     put_string("keyboard init done\n");
+}
+
+char sys_getchar(){
+    return ioq_getchar(&kbd_buf);
 }
