@@ -31,20 +31,15 @@ static void update_cursor_position(struct editor_buf *buf)
         buf->cursor_y++;
     }
     if (buf->cursor_y >= 25)
-    {
         buf->cursor_y = 24;
-    }
-    set_cursor(buf->cursor_y * 80 + buf->cursor_x);
-}
-
-static uint32_t get_line_length(struct editor_buf *buf, uint32_t line_start)
-{
-    uint32_t len = 0;
-    while (line_start + len < buf->size && buf->content[line_start + len] != '\n')
+    if (buf->cursor_x < 0)
     {
-        len++;
+        buf->cursor_x = 79;
+        buf->cursor_y--;
     }
-    return len;
+    if (buf->cursor_y < 2)
+        buf->cursor_y = 2;
+    set_cursor(buf->cursor_y * 80 + buf->cursor_x);
 }
 
 static void delete_char(struct editor_buf *buf)
@@ -53,21 +48,10 @@ static void delete_char(struct editor_buf *buf)
     {
         uint32_t pos = buf->cursor_y * 80 + buf->cursor_x - 1;
         for (uint32_t i = pos; i < buf->size - 1; i++)
-        {
             buf->content[i] = buf->content[i + 1];
-        }
         buf->content[buf->size - 1] = '\0';
         buf->size--;
-        if (buf->cursor_x > 0)
-        {
-            buf->cursor_x--;
-        }
-        else if (buf->cursor_y > 0)
-        {
-            buf->cursor_y--;
-            uint32_t line_start = buf->cursor_y * 80;
-            buf->cursor_x = get_line_length(buf, line_start);
-        }
+        buf->cursor_x--;
         update_cursor_position(buf);
     }
 }
@@ -89,14 +73,7 @@ static void insert_char(struct editor_buf *buf, char c)
         buf->cursor_y++;
     }
     else
-    {
         buf->cursor_x++;
-        if (buf->cursor_x >= 80)
-        {
-            buf->cursor_x = 0;
-            buf->cursor_y++;
-        }
-    }
     update_cursor_position(buf);
 }
 
@@ -116,7 +93,6 @@ void editor_main(const char *filename)
     buf.size = 0;
     buf.cursor_x = 0;
     buf.cursor_y = 2;
-    set_cursor(buf.cursor_y * 80 + buf.cursor_x);
     buf.edit_mode = False;
     strcpy(buf.filename, filename);
     int fd = openFile(filename, O_RDWR);
@@ -141,6 +117,8 @@ void editor_main(const char *filename)
                 printf("%c", buf.content[i]);
                 buf.cursor_x = 0;
                 buf.cursor_y++;
+                if (buf.cursor_y >= 25)
+                    buf.cursor_y = 24;
             }
             else
             {
@@ -151,10 +129,10 @@ void editor_main(const char *filename)
                     buf.cursor_x = 0;
                     buf.cursor_y++;
                 }
+                if (buf.cursor_y >= 25)
+                    buf.cursor_y = 24;
             }
         }
-        if (buf.cursor_y >= 25)
-            buf.cursor_y = 24;
         set_cursor(buf.cursor_y * 80 + buf.cursor_x);
         char c = getchar();
         if (!buf.edit_mode)
@@ -185,8 +163,7 @@ void editor_main(const char *filename)
                 free(buf.content);
                 return;
             case 72:
-                if (buf.cursor_y > 0)
-                    buf.cursor_y--;
+                buf.cursor_y--;
                 update_cursor_position(&buf);
                 break;
             case 80:
@@ -194,17 +171,11 @@ void editor_main(const char *filename)
                 update_cursor_position(&buf);
                 break;
             case '<':
-                if (buf.cursor_x > 0)
-                    buf.cursor_x--;
+                buf.cursor_x--;
                 update_cursor_position(&buf);
                 break;
             case '>':
                 buf.cursor_x++;
-                if (buf.cursor_x >= 80)
-                {
-                    buf.cursor_x = 0;
-                    buf.cursor_y++;
-                }
                 update_cursor_position(&buf);
                 break;
             default:
@@ -215,10 +186,7 @@ void editor_main(const char *filename)
             if (c == 27)
                 buf.edit_mode = False;
             else if (c == '\b')
-            {
                 delete_char(&buf);
-                update_cursor_position(&buf);
-            }
             else
                 insert_char(&buf, c);
         }
