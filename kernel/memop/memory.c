@@ -65,12 +65,10 @@ static void vaddr_remove(enum pool_flags pf,
                         uint32_t pg_cnt)
 {
     uint32_t bit_idx_start=0,vaddr=(uint32_t)_vaddr,cnt=0;
-    if (pf == PF_KERNEL)
-    {
-        bit_idx_start = (vaddr - kernel_vaddr.vaddr_start) / PG_SIZE;
-        while (cnt < pg_cnt)
-        {
-            bitmap_set(&kernel_vaddr.vaddr_bitmap, bit_idx_start + cnt++, 0);
+    if(pf==PF_KERNEL){
+        bit_idx_start=(vaddr-kernel_vaddr.vaddr_start)/PG_SIZE;
+        while(cnt<pg_cnt){
+            bitmap_set(&kernel_vaddr.vaddr_bitmap,bit_idx_start+cnt++,0);
         }
     }
     else
@@ -490,7 +488,7 @@ void sys_free(void* ptr){
             mfree_page(PF,a,a->cnt);
         }else{
             list_append(&a->desc->free_list,&b->free_elem);
-            if(++a->cnt==a->desc->blocks_per_arena){
+            if((++a->cnt)==a->desc->blocks_per_arena){
                 uint32_t block_idx;
                 for(block_idx=0;block_idx<a->desc->blocks_per_arena;block_idx++){
                     struct mem_block*  b=arena2block(a,block_idx);

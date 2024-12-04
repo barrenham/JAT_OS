@@ -180,14 +180,12 @@ static void process_kill_command(void *_cmd_line)
     {
         i++;
     }
-    pid_t pid = atoi_10(&cmd_line[i]);
-    struct list_elem *elem = thread_all_list.head.next;
-    while (elem->next != NULL)
-    {
-        struct task_struct *pcb = elem2entry(struct task_struct, all_list_tag, elem);
-        if (pcb == running_thread() || (!strcmp(pcb->name, "thread_cleaner")))
-        {
-            elem = elem->next;
+    pid_t pid=atoi_10(&cmd_line[i]);
+    struct list_elem* elem=thread_all_list.head.next;
+    while(elem->next!=NULL){
+        struct task_struct* pcb=elem2entry(struct task_struct,all_list_tag,elem);
+        if(pcb==running_thread()||(!strcmp(pcb->name,"thread_cleaner"))||(!strcmp(pcb->name,"shell"))){
+            elem=elem->next;
             continue;
         }
         if (pcb->pid == pid)
@@ -329,73 +327,64 @@ static void process_cd_command(void *_cmd_line)
     }
 }
 
-static void readline(char *buf, int32_t count)
-{
-    ASSERT(buf != NULL && count > 0);
-    char *pos = buf;
-    while (read(stdin_no, pos, 1) != -1 && (pos - buf) < count)
-    {
-        switch (*pos)
-        {
-        case '\n':
-        case '\r':
-        {
-            *pos = 0;
-            putchar('\n');
-            return;
-        }
-        case '\b':
-        {
-            if (buf[0] != '\b')
+
+static void readline(char* buf,int32_t count){
+    ASSERT(buf!=NULL&&count>0);
+    char* pos=buf;
+    while(read(stdin_no,pos,1)!=-1&&(pos-buf)<count){
+        switch(*pos){
+            case '\n':
+            case '\r':
             {
-                --pos;
-                putchar('\b');
+                *pos=0;
+                putchar('\n');
+                return;
             }
-            break;
-        }
-        case 72:
-        {
-            char *history_cmd_ptr = history_get_prev(&cmd_history);
-            if (history_cmd_ptr != NULL)
+            case '\b':
             {
-                strcpy(buf, history_cmd_ptr);
-                while (pos != buf)
-                {
+                if(buf[0]!='\b'){
+                    --pos;
                     putchar('\b');
-                    pos--;
                 }
-                for (int i = 0; i < strlen(history_cmd_ptr); i++)
-                {
-                    putchar(history_cmd_ptr[i]);
-                    pos++;
-                }
+                break;
             }
-            break;
-        }
-        case 80:
-        {
-            char *history_cmd_ptr = history_get_next(&cmd_history);
-            if (history_cmd_ptr != NULL)
+            case ((char)0x80):
             {
-                strcpy(buf, history_cmd_ptr);
-                while (pos != buf)
-                {
-                    putchar('\b');
-                    pos--;
+                char* history_cmd_ptr=history_get_prev(&cmd_history);
+                if(history_cmd_ptr!=NULL){
+                    strcpy(buf,history_cmd_ptr);
+                    while(pos!=buf){
+                        putchar('\b');
+                        pos--;
+                    }
+                    for(int i=0;i<strlen(history_cmd_ptr);i++){
+                        putchar(history_cmd_ptr[i]);
+                        pos++;
+                    }
                 }
-                for (int i = 0; i < strlen(history_cmd_ptr); i++)
-                {
-                    putchar(history_cmd_ptr[i]);
-                    pos++;
-                }
+                break;
             }
-            break;
-        }
-        default:
-        {
-            putchar(*pos);
-            pos++;
-        }
+            case ((char)0x81):
+            {
+                char* history_cmd_ptr=history_get_next(&cmd_history);
+                if(history_cmd_ptr!=NULL){
+                    strcpy(buf,history_cmd_ptr);
+                    while(pos!=buf){
+                        putchar('\b');
+                        pos--;
+                    }
+                    for(int i=0;i<strlen(history_cmd_ptr);i++){
+                        putchar(history_cmd_ptr[i]);
+                        pos++;
+                    }
+                }
+                break;
+            }
+            default:
+            {
+                putchar(*pos);
+                pos++;
+            }
         }
     }
 }
@@ -588,9 +577,9 @@ static void process_edit_command(void *_cmd_line)
 void my_shell(void)
 {
     history_init(&cmd_history);
-    cwd_cache[0] = '/';
-    while (1)
-    {
+    cwd_cache[0]='/';
+    while(1){
+        sema_init(&(running_thread()->waiting_sema),0);
         print_prompt();
         memset(cmd_line, 0, cmd_len);
         readline(cmd_line, cmd_len);
@@ -655,23 +644,9 @@ void my_shell(void)
                 printf("\n");
             }
         }
-        if (cmd_line[0] == 'e' && cmd_line[1] == 'x' && cmd_line[2] == 'e' && cmd_line[3] == 'c')
-        {
-            strcpy(cmd_line_exec_bat, cmd_line);
-            process_execute(((uint32_t)process_program), "loader");
-            thread_wait();
-        }
-        if (cmd_line[0] == 'r' && cmd_line[1] == 'm')
-        {
-            strcpy(cmd_line_rm_bat, cmd_line);
-            thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
-            thread_wait();
-        }
-        if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
-        {
-            strcpy(cmd_line_touch_bat, cmd_line);
-            thread_start("touch", SECOND_PRIO, process_touch_command, (void *)cmd_line_touch_bat);
-            thread_wait();
+        if(cmd_line[0]=='e'&&cmd_line[1]=='x'&&cmd_line[2]=='e'&&cmd_line[3]=='c'){
+            strcpy(cmd_line_exec_bat,cmd_line);
+            process_execute(((uint32_t)process_program),"loader");
         }
         if (cmd_line[0] == 'e' && cmd_line[1] == 'd' && cmd_line[2] == 'i' && cmd_line[3] == 't')
         {
