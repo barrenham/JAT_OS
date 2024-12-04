@@ -17,6 +17,8 @@
 #include "../include/list.h"
 #include "../include/history.h"
 
+static char empty[2]={0};
+
 int32_t history_init(struct history* phistory){
     list_init(&(phistory->history_list));
     phistory->cnt=0;
@@ -39,19 +41,31 @@ int32_t history_push(struct history* phistory,char* cmd_line){
     struct history_elem* new_elem=malloc(sizeof(struct history_elem));
     history_elem_init(new_elem,cmd_line);
     list_push(&(phistory->history_list),&(new_elem->history_tag));
-    phistory->now_history_elem=new_elem;
+    phistory->now_history_elem=NULL;
     (phistory->cnt)++;
     return 0;
 }
 char* history_get_next(struct history* phistory){
-    if(phistory->now_history_elem->history_tag.prev==NULL||phistory->now_history_elem->history_tag.prev==(void*)0xC0000000){
+    if(phistory->now_history_elem==NULL){
         return NULL;
+    }
+    if(phistory->now_history_elem->history_tag.prev==&(phistory->history_list.head)){
+        phistory->now_history_elem=NULL;
+        return empty;
     }
     phistory->now_history_elem=phistory->now_history_elem->history_tag.prev;
     return phistory->now_history_elem->cmd_line;
 }
 char* history_get_prev(struct history* phistory){
-    if(phistory->now_history_elem->history_tag.next==NULL||phistory->now_history_elem->history_tag.next==(void*)0xC0000000){
+    if(phistory->now_history_elem==NULL){
+        if(phistory->cnt==0){
+            return NULL;
+        }else{
+            phistory->now_history_elem=phistory->history_list.head.next;
+            return phistory->now_history_elem->cmd_line;
+        }
+    }
+    if(phistory->now_history_elem->history_tag.next==&(phistory->history_list.tail)){
         return NULL;
     }
     phistory->now_history_elem=phistory->now_history_elem->history_tag.next;
