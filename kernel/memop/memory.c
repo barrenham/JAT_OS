@@ -70,11 +70,14 @@ static void vaddr_remove(enum pool_flags pf,
         while(cnt<pg_cnt){
             bitmap_set(&kernel_vaddr.vaddr_bitmap,bit_idx_start+cnt++,0);
         }
-    }else{
-        struct task_struct* cur_thread=running_thread();
-        bit_idx_start=(vaddr-cur_thread->userprog_vaddr.vaddr_start)/PG_SIZE;
-        while(cnt<pg_cnt){
-            bitmap_set(&cur_thread->userprog_vaddr.vaddr_bitmap,bit_idx_start+cnt++,0);
+    }
+    else
+    {
+        struct task_struct *cur_thread = running_thread();
+        bit_idx_start = (vaddr - cur_thread->userprog_vaddr.vaddr_start) / PG_SIZE;
+        while (cnt < pg_cnt)
+        {
+            bitmap_set(&cur_thread->userprog_vaddr.vaddr_bitmap, bit_idx_start + cnt++, 0);
         }
     }
 }
