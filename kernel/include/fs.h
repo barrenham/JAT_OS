@@ -14,7 +14,7 @@
 
 #define FAILED_FD           -1
 
-typedef uint32_t filesize;
+typedef int32_t  filesize;
 typedef int32_t  file_descriptor;
 
 enum file_types{

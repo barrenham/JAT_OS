@@ -823,6 +823,9 @@ filesize sys_get_file_size(file_descriptor fd){
         return GENERAL_FAULT;
     }
     ASSERT(file_table[_fd].fd_inode!=NULL);
+    if(file_table[_fd].fd_inode->i_size >(uint32_t)70*1024){
+        return GENERAL_FAULT;
+    }
     return file_table[_fd].fd_inode->i_size;
 }
 
