@@ -1,0 +1,6 @@
+bochsrc.disk
+*.o
+.vscode
+*.bin
+*.txt
+*.img
