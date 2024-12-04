@@ -15,4 +15,5 @@ void console_put_char(uint8_t char_asci);
 
 void console_put_int(uint32_t num);
 
+void console_clear();
 #endif

@@ -34,3 +34,10 @@ void console_put_int(uint32_t num){
     put_int(num);
     console_release();
 }
+
+void console_clear(void)
+{
+    for (int i = 0; i < 80 * 25; i++)
+        console_put_char(' ');
+    set_cursor(0);
+}
