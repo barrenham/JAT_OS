@@ -22,7 +22,7 @@
 00000000000i[IMG   ] Disk image modules
 00000000000i[IMG   ]   flat concat sparse dll growing undoable volatile vmware3
 00000000000i[IMG   ]   vmware4 vbox vpc vvfat
-00000000000i[MEM0  ] allocated memory at 0x7fd8e93b1010. after alignment, vector=0x7fd8e93b2000
+00000000000i[MEM0  ] allocated memory at 0x7fcb8fc24010. after alignment, vector=0x7fcb8fc25000
 00000000000i[MEM0  ] 256.00MB
 00000000000i[MEM0  ] mem block size = 0x00020000, blocks=2048
 00000000000i[MEM0  ] rom at 0xfffe0000/131072 ('/usr/local/share/bochs/BIOS-bochs-latest')
@@ -33,7 +33,7 @@
 00000000000i[DEV   ] PIIX3 PCI-to-ISA bridge present at device 1, function 0
 00000000000i[PLUGIN] init_dev of 'cmos' plugin device by virtual method
 00000000000i[CMOS  ] Using local time for initial clock
-00000000000i[CMOS  ] Setting initial clock to: Wed Dec  4 15:43:28 2024 (time0=1733298208)
+00000000000i[CMOS  ] Setting initial clock to: Wed Dec  4 20:27:28 2024 (time0=1733315248)
 00000000000i[PLUGIN] init_dev of 'dma' plugin device by virtual method
 00000000000i[DMA   ] channel 4 used by cascade
 00000000000i[PLUGIN] init_dev of 'pic' plugin device by virtual method
@@ -52479,24 +52479,24 @@
 00124214775e[HD    ] IO read(0x01f0) with drq == 0: last command was 20h
 00124214779e[HD    ] IO read(0x01f0) with drq == 0: last command was 20h
 00124214783e[HD    ] IO read(0x01f0) with drq == 0: last command was 20h
-04809760000p[SDL   ] >>PANIC<< User requested shutdown.
-04809760000i[CPU0  ] CPU is in protected mode (active)
-04809760000i[CPU0  ] CS.mode = 32 bit
-04809760000i[CPU0  ] SS.mode = 32 bit
-04809760000i[CPU0  ] EFER   = 0x00000000
-04809760000i[CPU0  ] | EAX=00000002  EBX=c0016ff4  ECX=0000000f  EDX=0000000f
-04809760000i[CPU0  ] | ESP=c0118e18  EBP=c0118e40  ESI=00000000  EDI=00000000
-04809760000i[CPU0  ] | IOPL=0 id vip vif ac vm rf nt of df IF tf SF zf AF pf CF
-04809760000i[CPU0  ] | SEG sltr(index|ti|rpl)     base    limit G D
-04809760000i[CPU0  ] |  CS:0008( 0001| 0|  0) 00000000 ffffffff 1 1
-04809760000i[CPU0  ] |  DS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
-04809760000i[CPU0  ] |  SS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
-04809760000i[CPU0  ] |  ES:0010( 0002| 0|  0) 00000000 ffffffff 1 1
-04809760000i[CPU0  ] |  FS:0000( 0000| 0|  0) 00000000 00000000 0 0
-04809760000i[CPU0  ] |  GS:0018( 0003| 0|  0) c00b8000 00007fff 1 1
-04809760000i[CPU0  ] | EIP=c001018a (c001018a)
-04809760000i[CPU0  ] | CR0=0xe0000011 CR2=0x00000000
-04809760000i[CPU0  ] | CR3=0x00100000 CR4=0x00000000
-04809760000d[PCI   ] Exit
-04809760000i[CMOS  ] Last time is 1733298328 (Wed Dec  4 15:45:28 2024)
-04809760000i[SIM   ] quit_sim called with exit code 1
+13613400000p[SDL   ] >>PANIC<< User requested shutdown.
+13613400000i[CPU0  ] CPU is in protected mode (active)
+13613400000i[CPU0  ] CS.mode = 32 bit
+13613400000i[CPU0  ] SS.mode = 32 bit
+13613400000i[CPU0  ] EFER   = 0x00000000
+13613400000i[CPU0  ] | EAX=0002ee14  EBX=00016ff4  ECX=c0132e50  EDX=0002ee13
+13613400000i[CPU0  ] | ESP=c009efc0  EBP=c009eff8  ESI=00085000  EDI=c0017000
+13613400000i[CPU0  ] | IOPL=0 id vip vif ac vm rf nt of df IF tf sf zf af PF cf
+13613400000i[CPU0  ] | SEG sltr(index|ti|rpl)     base    limit G D
+13613400000i[CPU0  ] |  CS:0008( 0001| 0|  0) 00000000 ffffffff 1 1
+13613400000i[CPU0  ] |  DS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+13613400000i[CPU0  ] |  SS:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+13613400000i[CPU0  ] |  ES:0010( 0002| 0|  0) 00000000 ffffffff 1 1
+13613400000i[CPU0  ] |  FS:0000( 0000| 0|  0) 00000000 00000000 0 0
+13613400000i[CPU0  ] |  GS:0018( 0003| 0|  0) c00b8000 00007fff 1 1
+13613400000i[CPU0  ] | EIP=00001708 (00001708)
+13613400000i[CPU0  ] | CR0=0xe0000011 CR2=0x00000000
+13613400000i[CPU0  ] | CR3=0x00100000 CR4=0x00000000
+13613400000d[PCI   ] Exit
+13613400000i[CMOS  ] Last time is 1733315588 (Wed Dec  4 20:33:08 2024)
+13613400000i[SIM   ] quit_sim called with exit code 1

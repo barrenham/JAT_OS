@@ -1,5 +1,5 @@
-#ifndef __KERNEL_EDITOR_H
-#define __KERNEL_EDITOR_H
+#ifndef _EDITOR_H
+#define _EDITOR_H
 
 void editor_main(const char* filename);
 

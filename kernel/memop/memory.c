@@ -65,16 +65,21 @@ static void vaddr_remove(enum pool_flags pf,
                         uint32_t pg_cnt)
 {
     uint32_t bit_idx_start=0,vaddr=(uint32_t)_vaddr,cnt=0;
-    if(pf=PF_KERNEL){
-        bit_idx_start=(vaddr-kernel_vaddr.vaddr_start)/PG_SIZE;
-        while(cnt<pg_cnt){
-            bitmap_set(&kernel_vaddr.vaddr_bitmap,bit_idx_start+cnt++,0);
+    if (pf == PF_KERNEL)
+    {
+        bit_idx_start = (vaddr - kernel_vaddr.vaddr_start) / PG_SIZE;
+        while (cnt < pg_cnt)
+        {
+            bitmap_set(&kernel_vaddr.vaddr_bitmap, bit_idx_start + cnt++, 0);
         }
-    }else{
-        struct task_struct* cur_thread=running_thread();
-        bit_idx_start=(vaddr-cur_thread->userprog_vaddr.vaddr_start)/PG_SIZE;
-        while(cnt<pg_cnt){
-            bitmap_set(&cur_thread->userprog_vaddr.vaddr_bitmap,bit_idx_start+cnt++,0);
+    }
+    else
+    {
+        struct task_struct *cur_thread = running_thread();
+        bit_idx_start = (vaddr - cur_thread->userprog_vaddr.vaddr_start) / PG_SIZE;
+        while (cnt < pg_cnt)
+        {
+            bitmap_set(&cur_thread->userprog_vaddr.vaddr_bitmap, bit_idx_start + cnt++, 0);
         }
     }
 }

@@ -62,19 +62,20 @@ static int atoi_10(const char *str)
 }
 
 extern struct list thread_all_list;
-static char cmd_line[cmd_len]={0};
-static char cmd_line_kill_bat[cmd_len]={0};
-static char cmd_line_ps_bat[cmd_len]={0};
-static char cmd_line_cat_bat[cmd_len]={0};
-static char cmd_line_exec_bat[cmd_len]={0};
-static char cmd_line_rm_bat[cmd_len]={0};
-static char cmd_line_touch_bat[cmd_len]={0};
-static char cmd_line_vim_bat[cmd_len]={0};
+static char cmd_line[cmd_len] = {0};
+static char cmd_line_kill_bat[cmd_len] = {0};
+static char cmd_line_ps_bat[cmd_len] = {0};
+static char cmd_line_cat_bat[cmd_len] = {0};
+static char cmd_line_exec_bat[cmd_len] = {0};
+static char cmd_line_rm_bat[cmd_len] = {0};
+static char cmd_line_touch_bat[cmd_len] = {0};
+static char cmd_line_vim_bat[cmd_len] = {0};
 
 static struct history cmd_history;
 
-static bool isChar(c){
-    return (c>='A'&&c<='Z')||(c>='a'&&c<='z');
+static bool isChar(c)
+{
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
 static bool isDigit(c)
@@ -328,64 +329,73 @@ static void process_cd_command(void *_cmd_line)
     }
 }
 
-
-static void readline(char* buf,int32_t count){
-    ASSERT(buf!=NULL&&count>0);
-    char* pos=buf;
-    while(read(stdin_no,pos,1)!=-1&&(pos-buf)<count){
-        switch(*pos){
-            case '\n':
-            case '\r':
+static void readline(char *buf, int32_t count)
+{
+    ASSERT(buf != NULL && count > 0);
+    char *pos = buf;
+    while (read(stdin_no, pos, 1) != -1 && (pos - buf) < count)
+    {
+        switch (*pos)
+        {
+        case '\n':
+        case '\r':
+        {
+            *pos = 0;
+            putchar('\n');
+            return;
+        }
+        case '\b':
+        {
+            if (buf[0] != '\b')
             {
-                *pos=0;
-                putchar('\n');
-                return;
+                --pos;
+                putchar('\b');
             }
-            case '\b':
+            break;
+        }
+        case 72:
+        {
+            char *history_cmd_ptr = history_get_prev(&cmd_history);
+            if (history_cmd_ptr != NULL)
             {
-                if(buf[0]!='\b'){
-                    --pos;
+                strcpy(buf, history_cmd_ptr);
+                while (pos != buf)
+                {
                     putchar('\b');
+                    pos--;
                 }
-                break;
-            }
-            case 72:
-            {
-                char* history_cmd_ptr=history_get_prev(&cmd_history);
-                if(history_cmd_ptr!=NULL){
-                    strcpy(buf,history_cmd_ptr);
-                    while(pos!=buf){
-                        putchar('\b');
-                        pos--;
-                    }
-                    for(int i=0;i<strlen(history_cmd_ptr);i++){
-                        putchar(history_cmd_ptr[i]);
-                        pos++;
-                    }
+                for (int i = 0; i < strlen(history_cmd_ptr); i++)
+                {
+                    putchar(history_cmd_ptr[i]);
+                    pos++;
                 }
-                break;
             }
-            case 80:
+            break;
+        }
+        case 80:
+        {
+            char *history_cmd_ptr = history_get_next(&cmd_history);
+            if (history_cmd_ptr != NULL)
             {
-                char* history_cmd_ptr=history_get_next(&cmd_history);
-                if(history_cmd_ptr!=NULL){
-                    strcpy(buf,history_cmd_ptr);
-                    while(pos!=buf){
-                        putchar('\b');
-                        pos--;
-                    }
-                    for(int i=0;i<strlen(history_cmd_ptr);i++){
-                        putchar(history_cmd_ptr[i]);
-                        pos++;
-                    }
+                strcpy(buf, history_cmd_ptr);
+                while (pos != buf)
+                {
+                    putchar('\b');
+                    pos--;
                 }
-                break;
+                for (int i = 0; i < strlen(history_cmd_ptr); i++)
+                {
+                    putchar(history_cmd_ptr[i]);
+                    pos++;
+                }
             }
-            default:
-            {
-                putchar(*pos);
-                pos++;
-            }
+            break;
+        }
+        default:
+        {
+            putchar(*pos);
+            pos++;
+        }
         }
     }
 }
@@ -518,11 +528,6 @@ static void process_rm_command(void *_cmd_line)
     }
 }
 
-static void process_clear_command(void *_cmd_line)
-{
-    console_clear();
-}
-
 static void process_touch_command(void *_cmd_line)
 {
     char *cmd_line = _cmd_line;
@@ -543,30 +548,24 @@ static void process_touch_command(void *_cmd_line)
     while (cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
         buf[idx++] = cmd_line[i++];
     buf[idx] = '\0';
-    if (get_file_type(buf) == FT_REGULAR || get_file_type(buf) == FT_DIRECTORY || get_file_type(buf) == FT_UNKNOWN)
+    int type = get_file_type(buf);
+    if (type == FT_REGULAR || type == FT_DIRECTORY || type == FT_UNKNOWN)
     {
         printf("File already exists: %s\n", buf);
         return;
     }
     int fd = openFile(buf, O_CREAT);
-    if (fd == -1)
-        printf("Failed to create file: %s\n", buf);
-    else
-    {
-        printf("File created: %s\n", buf);
-        closeFile(fd);
-    }
 }
 
-static void process_vim_command(void *_cmd_line)
+static void process_edit_command(void *_cmd_line)
 {
     char *cmd_line = _cmd_line;
-    int i = 3;
+    int i = 4;
     while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
         i++;
     if (cmd_line[i] == '\0')
     {
-        printf("Usage: vim <filename>\n");
+        printf("Usage: edit <filename>\n\n");
         return;
     }
     char filename[MAX_PATH_LENGTH] = {0};
@@ -586,10 +585,12 @@ static void process_vim_command(void *_cmd_line)
     editor_main(filepath);
 }
 
-void my_shell(void){
+void my_shell(void)
+{
     history_init(&cmd_history);
-    cwd_cache[0]='/';
-    while(1){
+    cwd_cache[0] = '/';
+    while (1)
+    {
         print_prompt();
         memset(cmd_line, 0, cmd_len);
         readline(cmd_line, cmd_len);
@@ -666,21 +667,24 @@ void my_shell(void){
             thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
             thread_wait();
         }
-        if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
-            process_clear_command(cmd_line);
         if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
         {
             strcpy(cmd_line_touch_bat, cmd_line);
             thread_start("touch", SECOND_PRIO, process_touch_command, (void *)cmd_line_touch_bat);
             thread_wait();
-            continue;
         }
-        if (cmd_line[0] == 'v' && cmd_line[1] == 'i' && cmd_line[2] == 'm')
+        if (cmd_line[0] == 'e' && cmd_line[1] == 'd' && cmd_line[2] == 'i' && cmd_line[3] == 't')
         {
             strcpy(cmd_line_vim_bat, cmd_line);
-            thread_start("vim", SECOND_PRIO, process_vim_command, (cmd_line_vim_bat));
+            thread_start("edit", SECOND_PRIO, process_edit_command, (cmd_line_vim_bat));
             thread_wait();
         }
-        history_push(&cmd_history,cmd_line);
+        if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
+        {
+            for (int i = 0; i < 25; i++)
+                printf("\n");
+            set_cursor(0);
+        }
+        history_push(&cmd_history, cmd_line);
     }
 }
