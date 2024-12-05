@@ -576,6 +576,12 @@ static void process_edit_command(void *_cmd_line)
         filepath[idx] = '\0';
     }
     strcat(filepath, filename);
+    int type = get_file_type(filepath);
+    if (type != FT_REGULAR)
+    {
+        printf("Invalid file: %s\n", filepath);
+        return;
+    }
     editor_main(filepath);
 }
 
@@ -663,6 +669,12 @@ void my_shell(void)
             strcpy(cmd_line_exec_bat,cmd_line);
             process_execute(((uint32_t)process_program),"loader");
         }
+        if (cmd_line[0] == 'r' && cmd_line[1] == 'm')
+        {
+            strcpy(cmd_line_rm_bat, cmd_line);
+            thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
+            thread_wait();
+        }
         if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
         {
             strcpy(cmd_line_touch_bat, cmd_line);
@@ -677,8 +689,8 @@ void my_shell(void)
         }
         if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
         {
-            for (int i = 0; i < 25; i++)
-                printf("\n");
+            for (int i = 0; i < 25 * 80; i++)
+                printf(" ");
             set_cursor(0);
         }
         history_push(&cmd_history, cmd_line);
