@@ -399,6 +399,11 @@ static void ls(void)
     sys_dir_list(cwd_cache);
 }
 
+static void lsi(void)
+{
+    sys_dir_list_info(cwd_cache);
+}
+
 static void ps(void)
 {
     struct list_elem *elem = thread_all_list.head.next;
@@ -586,6 +591,11 @@ void my_shell(void)
         if (cmd_line[0] == 0)
         {
             continue;
+        }
+        if (cmd_line[0] == 'l' && cmd_line[1] == 's' && cmd_line[2] == 'i')
+        {
+            thread_start("lsi", SECOND_PRIO, lsi, NULL);
+            thread_wait();
         }
         if (cmd_line[0] == 'l' && cmd_line[1] == 's')
         {

@@ -165,3 +165,7 @@ int32_t pipe(int fd[2]){
 int32_t execv(const char* filepath,char** argv){
     return _syscall2(SYS_EXEC,filepath,argv);
 }
+
+char getchar(){
+    return _syscall0(SYS_GETCHAR);
+}
