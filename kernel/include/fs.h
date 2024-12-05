@@ -14,7 +14,7 @@
 
 #define FAILED_FD           -1
 
-typedef uint32_t filesize;
+typedef int32_t  filesize;
 typedef int32_t  file_descriptor;
 
 enum file_types{
@@ -91,5 +91,7 @@ uint32_t fd_local2global(uint32_t local_fd);
 filesize sys_get_file_size(file_descriptor fd);
 
 enum file_types sys_get_file_attribute(const char* pathname);
+
+int32_t sys_dir_list_info(const char*pathname);
 
 #endif

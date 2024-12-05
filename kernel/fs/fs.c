@@ -496,7 +496,8 @@ int32_t sys_seekp(int32_t fd,int32_t offset,enum whence wh_type){
         case SEEK_END:
         {
             ASSERT(offset<=0);
-            file_table[_fd].fd_pos=offset+file_table[_fd].fd_inode->i_size;
+            ASSERT(-offset<=(int32_t)file_table[_fd].fd_inode->i_size);
+            file_table[_fd].fd_pos=offset+(int32_t)(file_table[_fd].fd_inode->i_size);
             break;
         }
         default:
@@ -646,6 +647,62 @@ int32_t sys_dir_list(const char*pathname){
     return 0;
 }
 
+int32_t sys_dir_list_info(const char*pathname){
+
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+    if(found==False){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    if(searched_record.file_type!=FT_DIRECTORY){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    struct inode* dir=inode_open(cur_part,inode_no);
+    uint32_t secondary_lba;
+    uint32_t* all_blocks=(uint32_t*)sys_malloc(140*sizeof(uint32_t));
+    memset(all_blocks,0,140*sizeof(uint32_t));
+    uint8_t* io_buf=(uint8_t*)sys_malloc(BLOCK_SIZE);
+    for(int i=0;i<13;i++){
+        all_blocks[i]=dir->i_sectors[i];
+        if(i==12&&all_blocks[i]!=0){
+            secondary_lba=all_blocks[i];
+            ide_read(cur_part->my_disk,all_blocks[i],all_blocks+12,1);
+        }
+    }
+    for(int i=0;i<140&&all_blocks[i]!=0;i++){
+        ide_read(cur_part->my_disk,all_blocks[i],io_buf,1);
+        struct dir_entry* dirE=(struct dir_entry*)io_buf;
+        int cnt=0;
+        printf("\n",NULL);
+        while((cnt<(BLOCK_SIZE/(sizeof(struct dir_entry))))){
+            if(dirE->filename[0]!='\0'){
+                dirE->filename[MAX_FILE_NAME_LEN-1]='\0';
+                char* filepath=sys_malloc(MAX_PATH_LEN);
+                strcpy(filepath,pathname);
+                strcat(filepath,dirE->filename);
+                file_descriptor fd=sys_open(filepath,O_RDONLY);
+                printf("[%s size:%d B type: %s]\n",dirE->filename,sys_get_file_size(fd),dirE->f_type==FT_DIRECTORY?"DIRECTORY":(dirE->f_type==FT_REGULAR)?"REGULAR  ":"UNKNOWN  ");
+                sys_close(fd);
+                sys_free(filepath);
+            }
+            dirE++;
+            cnt++;
+        }
+    }
+    putchar('\n');
+    inode_close(dir);
+    dir_close(searched_record.parent_dir);
+    sys_free(all_blocks);
+    sys_free(io_buf);
+    return 0;
+}
+
 
 int32_t sys_delete_dir(const char* pathname){
     char name[MAX_FILE_NAME_LEN]={0};
@@ -765,6 +822,9 @@ int32_t user_file_read(int32_t fd,const char* buf,uint32_t bufsize){
 }
 
 int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type){
+    if(fd<0){
+        return GENERAL_FAULT;
+    }
     int32_t _fd=fd_local2global(fd);
     ASSERT(!is_pipe(fd));
     if(_fd==FAILED_FD){
@@ -818,11 +878,17 @@ int32_t user_file_close(int32_t fd){
 }
 
 filesize sys_get_file_size(file_descriptor fd){
+    if(fd<0){
+        return GENERAL_FAULT;
+    }
     file_descriptor _fd=fd_local2global(fd);
     if(_fd==FAILED_FD){
         return GENERAL_FAULT;
     }
     ASSERT(file_table[_fd].fd_inode!=NULL);
+    if(file_table[_fd].fd_inode->i_size >(uint32_t)70*1024){
+        return GENERAL_FAULT;
+    }
     return file_table[_fd].fd_inode->i_size;
 }
 

@@ -399,6 +399,11 @@ static void ls(void)
     sys_dir_list(cwd_cache);
 }
 
+static void lsi(void)
+{
+    sys_dir_list_info(cwd_cache);
+}
+
 static void ps(void)
 {
     struct list_elem *elem = thread_all_list.head.next;
@@ -571,6 +576,12 @@ static void process_edit_command(void *_cmd_line)
         filepath[idx] = '\0';
     }
     strcat(filepath, filename);
+    int type = get_file_type(filepath);
+    if (type != FT_REGULAR)
+    {
+        printf("Invalid file: %s\n", filepath);
+        return;
+    }
     editor_main(filepath);
 }
 
@@ -586,6 +597,11 @@ void my_shell(void)
         if (cmd_line[0] == 0)
         {
             continue;
+        }
+        if (cmd_line[0] == 'l' && cmd_line[1] == 's' && cmd_line[2] == 'i')
+        {
+            thread_start("lsi", SECOND_PRIO, lsi, NULL);
+            thread_wait();
         }
         if (cmd_line[0] == 'l' && cmd_line[1] == 's')
         {
@@ -644,9 +660,20 @@ void my_shell(void)
                 printf("\n");
             }
         }
+        if(cmd_line[0]=='r'&&cmd_line[1]=='m'){
+            strcpy(cmd_line_rm_bat,cmd_line);
+            thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
+            thread_wait();
+        }
         if(cmd_line[0]=='e'&&cmd_line[1]=='x'&&cmd_line[2]=='e'&&cmd_line[3]=='c'){
             strcpy(cmd_line_exec_bat,cmd_line);
             process_execute(((uint32_t)process_program),"loader");
+        }
+        if (cmd_line[0] == 'r' && cmd_line[1] == 'm')
+        {
+            strcpy(cmd_line_rm_bat, cmd_line);
+            thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
+            thread_wait();
         }
         if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
         {
@@ -662,8 +689,8 @@ void my_shell(void)
         }
         if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
         {
-            for (int i = 0; i < 25; i++)
-                printf("\n");
+            for (int i = 0; i < 25 * 80; i++)
+                printf(" ");
             set_cursor(0);
         }
         history_push(&cmd_history, cmd_line);

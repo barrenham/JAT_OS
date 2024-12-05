@@ -190,7 +190,7 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
     inode_sync(cur_part,parent_dir->inode,io_buf);
     memset(io_buf,0,1024);
     inode_sync(cur_part,new_file_inode,io_buf);
-
+    put_int(new_file_inode->i_size);
     bitmap_sync(cur_part,inode_no,INODE_BITMAP);
     
     list_push(&cur_part->open_inodes,&new_file_inode->inode_tag);
@@ -560,7 +560,8 @@ int32_t file_remove_some_content(struct file* File,uint32_t offset,uint32_t size
     }
     
     bool should_delete_some_block=(offset+size) >= File->fd_inode->i_size;
-    uint32_t all_blocks[140]={0};
+    uint32_t* all_blocks=(uint8_t*)sys_malloc(140*sizeof(uint32_t));
+    memset(all_blocks,0,140*sizeof(uint32_t));
     uint32_t secondary_lba=0;
     for(int i=0;i<13;i++){
         all_blocks[i]=File->fd_inode->i_sectors[i];
@@ -572,7 +573,6 @@ int32_t file_remove_some_content(struct file* File,uint32_t offset,uint32_t size
     uint32_t blocks_passed=offset/BLOCK_SIZE;
     uint32_t in_block_offset=offset%BLOCK_SIZE;
     uint8_t* io_buf=(uint8_t*)sys_malloc(2*BLOCK_SIZE);
-
 rollback:
     if(should_delete_some_block){
         if(in_block_offset==0){
@@ -586,9 +586,11 @@ rollback:
                     }
                     blocks_passed+=1;
                 }
-                block_bitmap_dealloc(cur_part,secondary_lba-cur_part->sb->data_struct_lba);
-                bitmap_sync(cur_part,secondary_lba-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
-                ASSERT(blocks_passed==DIV_ROUND_UP(File->fd_inode->i_size,BLOCK_SIZE));
+                if(secondary_lba!=0){
+                    block_bitmap_dealloc(cur_part,secondary_lba-cur_part->sb->data_struct_lba);
+                    bitmap_sync(cur_part,secondary_lba-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
+                    ASSERT(blocks_passed==DIV_ROUND_UP(File->fd_inode->i_size,BLOCK_SIZE));
+                }
             }else{
                 while(all_blocks[blocks_passed]!=0){
                     block_bitmap_dealloc(cur_part,all_blocks[blocks_passed]-cur_part->sb->data_struct_lba);
@@ -630,9 +632,10 @@ rollback:
         }
     }
     if(should_delete_some_block){
-        File->fd_inode->i_size=offset;
+        File->fd_inode->i_size=offset-1;
     }
     inode_sync(cur_part,File->fd_inode,io_buf);
     sys_free(io_buf);
+    sys_free(all_blocks);
     return File->fd_inode->i_size;
 }

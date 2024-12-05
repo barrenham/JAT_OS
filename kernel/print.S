@@ -193,7 +193,7 @@ put_char:
 global set_cursor
 set_cursor:
     pushad
-    mov     ebx,    [esp+20]
+    mov     ebx,    [esp+36]
     
     mov     dx,     0x03d4
     mov     al,     0x0e
@@ -209,5 +209,19 @@ set_cursor:
     mov     al,     bl
     out     dx,     al
 
+    popad
+    ret
+
+global clean_screen
+clean_screen:
+    pushad
+    mov     ebx,    0
+    mov     ecx,    2000
+loop_cls:
+    mov     byte    [gs:ebx],   0
+    inc     ebx
+    mov     byte    [gs:ebx],   0x07
+    inc     ebx
+    loop    loop_cls
     popad
     ret
