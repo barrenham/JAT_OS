@@ -211,3 +211,17 @@ set_cursor:
 
     popad
     ret
+
+global clean_screen
+clean_screen:
+    pushad
+    mov     ebx,    0
+    mov     ecx,    2000
+loop_cls:
+    mov     byte    [gs:ebx],   0
+    inc     ebx
+    mov     byte    [gs:ebx],   0x07
+    inc     ebx
+    loop    loop_cls
+    popad
+    ret
