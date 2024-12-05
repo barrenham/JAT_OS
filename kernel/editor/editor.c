@@ -108,9 +108,9 @@ void editor_main(const char *filename)
     while (1)
     {
         clear_screen();
-        printf("File: %s %s\n", buf.filename, buf.edit_mode ? "-- INSERT --" : "-- NORMAL --");
+        printf("File: %s %s %d\n", buf.filename, buf.edit_mode ? "-- INSERT --" : "-- NORMAL --",buf.size);
         printf("------------------------------------------------\n\n");
-        for (uint32_t i = 0; i < buf.size; i++)
+        for (int i = 0; i < buf.size; i++)
         {
             if (buf.content[i] == '\n')
             {
@@ -119,6 +119,14 @@ void editor_main(const char *filename)
                 buf.cursor_y++;
                 if (buf.cursor_y >= 25)
                     buf.cursor_y = 24;
+            }
+            else if(buf.content[i]=='\0')
+            {
+                printf("0");
+            }
+            else if(buf.content[i]=='\b')
+            {
+                printf("b");
             }
             else
             {
@@ -134,6 +142,7 @@ void editor_main(const char *filename)
             }
         }
         set_cursor(buf.cursor_y * 80 + buf.cursor_x);
+        printf("%d",buf.cursor_y * 80 + buf.cursor_x);
         char c = getchar();
         if (!buf.edit_mode)
         {
@@ -162,11 +171,11 @@ void editor_main(const char *filename)
             case 'q':
                 free(buf.content);
                 return;
-            case 72:
+            case ((char)0x80):
                 buf.cursor_y--;
                 update_cursor_position(&buf);
                 break;
-            case 80:
+            case ((char)0x81):
                 buf.cursor_y++;
                 update_cursor_position(&buf);
                 break;
