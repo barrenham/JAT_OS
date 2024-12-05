@@ -190,7 +190,7 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
     inode_sync(cur_part,parent_dir->inode,io_buf);
     memset(io_buf,0,1024);
     inode_sync(cur_part,new_file_inode,io_buf);
-
+    put_int(new_file_inode->i_size);
     bitmap_sync(cur_part,inode_no,INODE_BITMAP);
     
     list_push(&cur_part->open_inodes,&new_file_inode->inode_tag);

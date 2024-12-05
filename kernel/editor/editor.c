@@ -101,7 +101,7 @@ void editor_main(const char *filename)
     {
         seekp(fd, 0, SEEK_SET);
         int read_cnt = read(fd, buf.content, BUF_SIZE);
-        buf.size = read_cnt;
+        buf.size = size;
         closeFile(fd);
     }
     int size1 = buf.size;

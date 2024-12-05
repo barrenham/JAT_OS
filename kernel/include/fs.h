@@ -92,4 +92,6 @@ filesize sys_get_file_size(file_descriptor fd);
 
 enum file_types sys_get_file_attribute(const char* pathname);
 
+int32_t sys_dir_list_info(const char*pathname);
+
 #endif
