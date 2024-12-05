@@ -193,7 +193,7 @@ put_char:
 global set_cursor
 set_cursor:
     pushad
-    mov     ebx,    [esp+20]
+    mov     ebx,    [esp+36]
     
     mov     dx,     0x03d4
     mov     al,     0x0e
