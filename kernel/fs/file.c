@@ -244,10 +244,6 @@ int32_t file_open(uint32_t inode_no, uint8_t flag) {
     file_table[fd_idx].fd_inode = inode_open(cur_part, inode_no);
     file_table[fd_idx].fd_pos = 0; // 初始化文件位置为 0。
     file_table[fd_idx].fd_flag = flag; // 设置文件打开标志。
-    for(int i=0;i<13;i++){
-        put_int(file_table[fd_idx].fd_inode->i_sectors[i]);
-    }
-    put_char('\n');
     bool* write_deny = &file_table[fd_idx].fd_inode->write_deny; // 获取写入拒绝标志的指针。
 
     // 检查文件打开模式，如果是只写或读写模式，则进行写入权限检查。
