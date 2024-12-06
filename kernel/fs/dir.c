@@ -254,6 +254,7 @@ int32_t dir_create(struct dir* parent_dir,char* filename,uint8_t flag)
 
     new_file_inode->i_sectors[0]=block_bitmap_alloc(cur_part);
     ide_read(cur_part->my_disk,new_file_inode->i_sectors[0],io_buf,1);
+    memset(io_buf,0,1024);
     struct dir_entry* dirE=(struct dir_entry*)io_buf;
     dirE->f_type=FT_DIRECTORY;
     dirE->i_no=new_file_inode->i_no;
@@ -330,6 +331,7 @@ int32_t dir_delete(struct dir* cur_dir)
                         struct dir Dir;
                         Dir.inode=inode_open(cur_part,dirE->i_no);
                         dir_delete(&Dir);
+                        printf("[removed %s]",dirE->filename);
                         inode_close(Dir.inode);
                         break;
                     }
@@ -341,6 +343,7 @@ int32_t dir_delete(struct dir* cur_dir)
                         file_remove_some_content(&File,0,inode->i_size);
                         inode_bitmap_dealloc(cur_part,inode->i_no);
                         bitmap_sync(cur_part,inode->i_no,INODE_BITMAP);
+                        printf("[removed %s]",dirE->filename);
                         inode_close(inode);
                         break;
                     }
