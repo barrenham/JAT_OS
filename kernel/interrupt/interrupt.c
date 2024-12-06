@@ -3,6 +3,7 @@
 #include "../include/global.h"
 #include "../include/io.h"
 #include "../include/print.h"
+#include "../include/memory.h"
 
 #define IDT_DESC_CNT        0x81
 
@@ -75,6 +76,12 @@ general_intr_handler(uint8_t vec_nr)
         asm volatile("movl %%cr2, %0":"=r"(page_fault_vaddr));
         put_string("\npage fault addr is ");
         put_int(page_fault_vaddr);
+        if(page_fault_vaddr>=0xC0000000){
+            ;
+        }else{
+            get_a_page(PF_USER,page_fault_vaddr);
+            return;
+        }
     }
     put_string("\n!!! exception message end !!!\n");
     

@@ -683,13 +683,14 @@ static void process_cp_command(void *_cmd_line)
         closeFile(fd_dst);
         fd_dst = openFile(dst_path, O_RDWR);
     }
-    char buf[size_src];
+    char* buf=malloc(size_src+100);
     seekp(fd_src, 0, SEEK_SET);
     if (read(fd_src, buf, size_src) != size_src)
     {
         printf("Failed to read file: %s\n", src_path);
         closeFile(fd_dst);
         closeFile(fd_src);
+        free(buf);
         return;
     }
     seekp(fd_dst, 0, SEEK_SET);
@@ -698,11 +699,13 @@ static void process_cp_command(void *_cmd_line)
         printf("Failed to write file: %s\n", dst_path);
         closeFile(fd_dst);
         closeFile(fd_src);
+        free(buf);
         return;
     }
     closeFile(fd_dst);
     closeFile(fd_src);
     printf("File copied successfully from %s to %s\n", src_path, dst_path);
+    free(buf);
 }
 
 void my_shell(void)

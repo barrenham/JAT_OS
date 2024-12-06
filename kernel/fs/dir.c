@@ -86,6 +86,9 @@ void dir_close(struct dir* dir){
     if(dir==&root_dir||((uint32_t)dir==(0xC0000000|((uint32_t)(&root_dir))))){
         return;
     }
+    if(dir==NULL){
+        return;
+    }
     inode_close(dir->inode);
     sys_free(dir);
 }

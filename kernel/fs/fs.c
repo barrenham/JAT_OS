@@ -25,6 +25,9 @@ extern struct file file_table[MAX_FILE_OPEN];
 
 
 uint32_t fd_local2global(uint32_t local_fd){
+    if(local_fd<0||local_fd>=MAX_FILES_OPEN_PER_PROC){
+        return FAILED_FD;
+    }
     struct task_struct* cur=running_thread();
     int32_t global_fd=cur->fd_table[local_fd];
     //ASSERT(global_fd>=0&&global_fd<MAX_FILE_OPEN);
@@ -352,6 +355,7 @@ int32_t sys_open(const char* pathname,uint8_t flags){
         default:
         {
             fd=file_open(inode_no,flags);
+            dir_close(searched_record.parent_dir);
             break;
         }
     }
@@ -564,7 +568,8 @@ int32_t sys_remove(const char* pathname){
     struct inode* parent_inode=searched_record.parent_dir->inode;
 
     uint32_t secondary_lba=0;
-    uint32_t all_blocks[140]={0};
+    uint32_t* all_blocks=malloc(140*sizeof(uint32_t));
+    memset(all_blocks,0,140*sizeof(uint32_t));
     uint8_t* io_buf=(uint8_t*)sys_malloc(BLOCK_SIZE);
     for(int i=0;i<13;i++){
         all_blocks[i]=parent_inode->i_sectors[i];
@@ -593,6 +598,7 @@ int32_t sys_remove(const char* pathname){
     file_remove_some_content(&File,0,File.fd_inode->i_size);
     inode_delete(cur_part,inode_no,io_buf);
     list_remove(&File.fd_inode->inode_tag);
+    sys_free(all_blocks);
     sys_free(io_buf);
     return 0;
 }
@@ -685,9 +691,13 @@ int32_t sys_dir_list_info(const char*pathname){
                 dirE->filename[MAX_FILE_NAME_LEN-1]='\0';
                 char* filepath=sys_malloc(MAX_PATH_LEN);
                 strcpy(filepath,pathname);
+                if(filepath[strlen(filepath)-1]!='/'){
+                    strcat(filepath,"/");
+                }
                 strcat(filepath,dirE->filename);
                 file_descriptor fd=sys_open(filepath,O_RDONLY);
-                printf("[%s size:%d B type: %s]\n",dirE->filename,sys_get_file_size(fd),dirE->f_type==FT_DIRECTORY?"DIRECTORY":(dirE->f_type==FT_REGULAR)?"REGULAR  ":"UNKNOWN  ");
+                printf("[%s size:%d B type: %s,inode:%d]\n",dirE->filename,sys_get_file_size(fd),dirE->f_type==FT_DIRECTORY?"DIRECTORY":(dirE->f_type==FT_REGULAR)?"REGULAR  ":"UNKNOWN  ",\
+                dirE->i_no);
                 sys_close(fd);
                 sys_free(filepath);
             }
@@ -821,14 +831,14 @@ int32_t user_file_read(int32_t fd,const char* buf,uint32_t bufsize){
 }
 
 int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type){
-    if(fd<0){
+    if(fd<=2){
         return GENERAL_FAULT;
     }
     int32_t _fd=fd_local2global(fd);
-    ASSERT(!is_pipe(fd));
     if(_fd==FAILED_FD){
-        return CANNOT_FIND_FD_IN_PROCESS_STACK;
+        return GENERAL_FAULT;
     }
+    ASSERT(!is_pipe(fd));
     if(file_table[_fd].fd_inode==NULL){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
@@ -904,5 +914,6 @@ enum file_types sys_get_file_attribute(const char* pathname){
         dir_close(searched_record.parent_dir);
         return -1;
     }
+    dir_close(searched_record.parent_dir);
     return searched_record.file_type;
 }
