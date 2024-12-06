@@ -70,6 +70,7 @@ static char cmd_line_exec_bat[cmd_len] = {0};
 static char cmd_line_rm_bat[cmd_len] = {0};
 static char cmd_line_touch_bat[cmd_len] = {0};
 static char cmd_line_edit_bat[cmd_len] = {0};
+static char cmd_line_cp_bat[cmd_len] = {0};
 static char cmd_line_rmdir_bat[cmd_len] = {0};
 static struct history cmd_history;
 
@@ -620,12 +621,73 @@ static void process_edit_command(void *_cmd_line)
     editor_main(filepath);
 }
 
+static void process_cp_command(void *_cmd_line)
+{
+    char *cmd_line = _cmd_line;
+    int i = 2;
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    if (cmd_line[i] == '\0')
+    {
+        printf("Usage: cp <source_file_path> <destination_file_path>\n\n");
+        return;
+    }
+    char src_path[MAX_PATH_LENGTH] = {0};
+    int idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        src_path[idx++] = cmd_line[i++];
+    src_path[idx] = '\0';
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    char dst_path[MAX_PATH_LENGTH] = {0};
+    idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        dst_path[idx++] = cmd_line[i++];
+    dst_path[idx] = '\0';
+    if (src_path[0] == '\0' || dst_path[0] == '\0')
+    {
+        printf("Usage: cp <source_file_path> <destination_file_path>\n\n");
+        return;
+    }
+    int type_src = get_file_type(src_path);
+    if (type_src != FT_REGULAR)
+    {
+        printf("Invalid source file: %s\n", src_path);
+        return;
+    }
+    int type_dst = get_file_type(dst_path);
+    if (type_dst == FT_DIRECTORY)
+    {
+        printf("Invalid destination file: %s, use file path\n", dst_path);
+        return;
+    }
+    if (type_dst != FT_REGULAR && type_dst != FT_UNKNOWN && type_dst != FT_DIRECTORY)
+    {
+        int fd = openFile(dst_path, O_CREAT);
+        closeFile(fd);
+    }
+    printf("src_path: %s, dst_path: %s\n", src_path, dst_path);
+    int result = copyFile(dst_path, src_path);
+    char buf[128] = {0};
+    int read_cnt = 0;
+    while ((read_cnt = read(src_path, buf, 128)) > 0)
+    {
+        for (int i = 0; i < read_cnt; i++)
+            printf("%c", buf[i]);
+    }
+    if (result == 0)
+        printf("File copied successfully from %s to %s\n", src_path, dst_path);
+    else
+        printf("Failed to copy");
+}
+
 void my_shell(void)
 {
     history_init(&cmd_history);
-    cwd_cache[0]='/';
-    while(1){
-        sema_init(&(running_thread()->waiting_sema),0);
+    cwd_cache[0] = '/';
+    while (1)
+    {
+        sema_init(&(running_thread()->waiting_sema), 0);
         print_prompt();
         memset(cmd_line, 0, cmd_len);
         readline(cmd_line, cmd_len);
@@ -715,6 +777,11 @@ void my_shell(void)
             thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
             thread_wait();
         }
+        if (cmd_line[0] == 'e' && cmd_line[1] == 'x' && cmd_line[2] == 'e' && cmd_line[3] == 'c')
+        {
+            strcpy(cmd_line_exec_bat, cmd_line);
+            process_execute(((uint32_t)process_program), "loader");
+        }
         if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
         {
             strcpy(cmd_line_touch_bat, cmd_line);
@@ -729,9 +796,14 @@ void my_shell(void)
         }
         if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
         {
-            for (int i = 0; i < 25 * 80; i++)
-                printf(" ");
+            clean_screen();
             set_cursor(0);
+        }
+        if (cmd_line[0] == 'c' && cmd_line[1] == 'p')
+        {
+            strcpy(cmd_line_cp_bat, cmd_line);
+            thread_start("cp", SECOND_PRIO, process_cp_command, (cmd_line_cp_bat));
+            thread_wait();
         }
         history_push(&cmd_history, cmd_line);
     }
