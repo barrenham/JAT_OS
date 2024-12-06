@@ -759,7 +759,6 @@ int32_t sys_delete_dir(const char* pathname){
                 ;
             }else{
                 if(!strcmp(dirE->filename,name)){
-                    printk("1\n");
                     memset(dirE,0,sizeof(struct dir_entry));
                     ide_write(cur_part->my_disk,all_blocks[blocks_passed],io_buf,1);
                     goto delete_end;

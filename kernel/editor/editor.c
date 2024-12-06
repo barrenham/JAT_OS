@@ -275,6 +275,7 @@ void editor_main(const char *filename)
     bool press_down = False;
     while (1)
     {
+        intr_disable();
         clean_screen();
         set_cursor(0);
         display_content(&buf);
@@ -285,6 +286,7 @@ void editor_main(const char *filename)
         }
         else
             set_cursor(buf.cursor_y * 80 + buf.cursor_x);
+        intr_enable();
         char c = getchar();
         if (!buf.edit_mode)
         {
@@ -308,8 +310,10 @@ void editor_main(const char *filename)
             }
             else if (c == 'q')
             {
+                intr_disable();
                 clean_screen();
                 set_cursor(0);
+                intr_enable();
                 free(buf.line_offsets);
                 free(buf.filename);
                 free(buf.content);
@@ -376,7 +380,9 @@ void editor_main(const char *filename)
                         if (buf.cursor_x > line_length)
                             buf.cursor_x = line_length;
                         update_pos(&buf);
+                        intr_disable();
                         display_content(&buf);
+                        intr_enable();
                     }
                 }
             }

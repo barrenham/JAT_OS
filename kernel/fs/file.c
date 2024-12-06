@@ -190,7 +190,6 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
     inode_sync(cur_part,parent_dir->inode,io_buf);
     memset(io_buf,0,1024);
     inode_sync(cur_part,new_file_inode,io_buf);
-    put_int(new_file_inode->i_size);
     bitmap_sync(cur_part,inode_no,INODE_BITMAP);
     
     list_push(&cur_part->open_inodes,&new_file_inode->inode_tag);
@@ -245,7 +244,6 @@ int32_t file_open(uint32_t inode_no, uint8_t flag) {
     file_table[fd_idx].fd_inode = inode_open(cur_part, inode_no);
     file_table[fd_idx].fd_pos = 0; // 初始化文件位置为 0。
     file_table[fd_idx].fd_flag = flag; // 设置文件打开标志。
-
     bool* write_deny = &file_table[fd_idx].fd_inode->write_deny; // 获取写入拒绝标志的指针。
 
     // 检查文件打开模式，如果是只写或读写模式，则进行写入权限检查。
