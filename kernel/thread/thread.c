@@ -384,7 +384,7 @@ void thread_cleaner(void){
                 for(file_descriptor fd=3;fd<MAX_FILES_OPEN_PER_PROC;fd++){
                     if(pcb->fd_table[fd]!=-1){
                         file_descriptor _fd=fd_local2global(fd);
-                        if(_fd>=3){
+                        if(_fd>=0){
                             file_close(&file_table[_fd]);
                         }
                     }

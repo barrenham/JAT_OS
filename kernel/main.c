@@ -62,6 +62,7 @@ int main(void) {
 				printk("file write error!\n");
 			}
 		}
+		sys_free(prog_buf);
 		closeFile(fd);
 	}
 

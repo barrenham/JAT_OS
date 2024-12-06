@@ -70,6 +70,7 @@ static char cmd_line_exec_bat[cmd_len] = {0};
 static char cmd_line_rm_bat[cmd_len] = {0};
 static char cmd_line_touch_bat[cmd_len] = {0};
 static char cmd_line_edit_bat[cmd_len] = {0};
+static char cmd_line_cp_bat[cmd_len] = {0};
 static char cmd_line_rmdir_bat[cmd_len] = {0};
 static struct history cmd_history;
 
@@ -113,6 +114,7 @@ static void process_rmdir_command(void* _cmd_line){
     buf[idx] = '\0'; // 终止字符串
     if (get_file_type(buf) != FT_DIRECTORY)
     {
+        printf("Not a directory: %s\n", buf);
         return;
     }
     if (delete (buf) != -1)
@@ -149,6 +151,7 @@ static void process_cat_command(void *_cmd_line)
     buf[idx] = '\0'; // 终止字符串
     if (get_file_type(buf) != FT_REGULAR)
     {
+        printf("Not a file: %s\n", buf);
         return;
     }
     file_descriptor fd = openFile(buf, O_RDONLY);
@@ -584,6 +587,7 @@ static void process_touch_command(void *_cmd_line)
         return;
     }
     int fd = openFile(buf, O_CREAT);
+    closeFile(fd);
 }
 
 static void process_edit_command(void *_cmd_line)
@@ -620,12 +624,97 @@ static void process_edit_command(void *_cmd_line)
     editor_main(filepath);
 }
 
+static void process_cp_command(void *_cmd_line)
+{
+    char *cmd_line = _cmd_line;
+    int i = 2;
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    if (cmd_line[i] == '\0')
+    {
+        printf("Usage: cp <source_file_path> <destination_file_path>\n\n");
+        return;
+    }
+    char src_path[MAX_PATH_LENGTH] = {0};
+    int idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        src_path[idx++] = cmd_line[i++];
+    src_path[idx] = '\0';
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    char dst_path[MAX_PATH_LENGTH] = {0};
+    idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        dst_path[idx++] = cmd_line[i++];
+    dst_path[idx] = '\0';
+    if (src_path[0] == '\0' || dst_path[0] == '\0')
+    {
+        printf("Usage: cp <source_file_path> <destination_file_path>\n\n");
+        return;
+    }
+    int type_src = get_file_type(src_path);
+    if (type_src != FT_REGULAR)
+    {
+        printf("Invalid source file: %s\n", src_path);
+        return;
+    }
+    int type_dst = get_file_type(dst_path);
+    if (type_dst == FT_DIRECTORY)
+    {
+        printf("Invalid destination file: %s, use file path\n", dst_path);
+        return;
+    }
+    if (type_dst != FT_REGULAR && type_dst != FT_UNKNOWN && type_dst != FT_DIRECTORY)
+    {
+        int fd = openFile(dst_path, O_CREAT);
+        closeFile(fd);
+    }
+    // int result = copyFile(dst_path, src_path);
+    // printf("result: %d\n", result);
+    int fd_dst = openFile(dst_path, O_RDWR);
+    int fd_src = openFile(src_path, O_RDWR);
+    filesize size_src = getfilesize(fd_src);
+    filesize size_dst = getfilesize(fd_dst);
+    if (size_dst > 0)
+    {
+        closeFile(fd_dst);
+        delete(dst_path);
+        fd_dst = openFile(dst_path, O_CREAT);
+        closeFile(fd_dst);
+        fd_dst = openFile(dst_path, O_RDWR);
+    }
+    char* buf=malloc(size_src+100);
+    seekp(fd_src, 0, SEEK_SET);
+    if (read(fd_src, buf, size_src) != size_src)
+    {
+        printf("Failed to read file: %s\n", src_path);
+        closeFile(fd_dst);
+        closeFile(fd_src);
+        free(buf);
+        return;
+    }
+    seekp(fd_dst, 0, SEEK_SET);
+    if (write(fd_dst, buf, size_src) != size_src)
+    {
+        printf("Failed to write file: %s\n", dst_path);
+        closeFile(fd_dst);
+        closeFile(fd_src);
+        free(buf);
+        return;
+    }
+    closeFile(fd_dst);
+    closeFile(fd_src);
+    printf("File copied successfully from %s to %s\n", src_path, dst_path);
+    free(buf);
+}
+
 void my_shell(void)
 {
     history_init(&cmd_history);
-    cwd_cache[0]='/';
-    while(1){
-        sema_init(&(running_thread()->waiting_sema),0);
+    cwd_cache[0] = '/';
+    while (1)
+    {
+        sema_init(&(running_thread()->waiting_sema), 0);
         print_prompt();
         memset(cmd_line, 0, cmd_len);
         readline(cmd_line, cmd_len);
@@ -695,25 +784,33 @@ void my_shell(void)
                 printf("\n");
             }
         }
-        if(cmd_line[0]=='r'&&cmd_line[1]=='m'&&cmd_line[2]!='d'){
-            strcpy(cmd_line_rm_bat,cmd_line);
+        if (cmd_line[0] == 'r' && cmd_line[1] == 'm' && cmd_line[2] != 'd')
+        {
+            strcpy(cmd_line_rm_bat, cmd_line);
             thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
             thread_wait();
         }
-        if(cmd_line[0]=='r'&&cmd_line[1]=='m'&&cmd_line[2]=='d'&&cmd_line[3]=='i'&&cmd_line[4]=='r'){
-            strcpy(cmd_line_rmdir_bat,cmd_line);
+        if (cmd_line[0] == 'r' && cmd_line[1] == 'm' && cmd_line[2] == 'd' && cmd_line[3] == 'i' && cmd_line[4] == 'r')
+        {
+            strcpy(cmd_line_rmdir_bat, cmd_line);
             thread_start("rmdir", SECOND_PRIO, process_rmdir_command, (cmd_line_rmdir_bat));
             thread_wait();
         }
-        if(cmd_line[0]=='e'&&cmd_line[1]=='x'&&cmd_line[2]=='e'&&cmd_line[3]=='c'){
-            strcpy(cmd_line_exec_bat,cmd_line);
-            process_execute(((uint32_t)process_program),"loader");
+        if (cmd_line[0] == 'e' && cmd_line[1] == 'x' && cmd_line[2] == 'e' && cmd_line[3] == 'c')
+        {
+            strcpy(cmd_line_exec_bat, cmd_line);
+            process_execute(((uint32_t)process_program), "loader");
         }
         if (cmd_line[0] == 'r' && cmd_line[1] == 'm')
         {
             strcpy(cmd_line_rm_bat, cmd_line);
             thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
             thread_wait();
+        }
+        if (cmd_line[0] == 'e' && cmd_line[1] == 'x' && cmd_line[2] == 'e' && cmd_line[3] == 'c')
+        {
+            strcpy(cmd_line_exec_bat, cmd_line);
+            process_execute(((uint32_t)process_program), "loader");
         }
         if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
         {
@@ -729,9 +826,14 @@ void my_shell(void)
         }
         if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
         {
-            for (int i = 0; i < 25 * 80; i++)
-                printf(" ");
+            clean_screen();
             set_cursor(0);
+        }
+        if (cmd_line[0] == 'c' && cmd_line[1] == 'p')
+        {
+            strcpy(cmd_line_cp_bat, cmd_line);
+            thread_start("cp", SECOND_PRIO, process_cp_command, (cmd_line_cp_bat));
+            thread_wait();
         }
         history_push(&cmd_history, cmd_line);
     }

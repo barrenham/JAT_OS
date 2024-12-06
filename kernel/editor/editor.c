@@ -10,6 +10,7 @@
 #include "../include/sync.h"
 #include "../include/thread.h"
 #include "../include/print.h"
+#include "../include/interrupt.h"
 
 #define BUF_SIZE (70 * 1024)
 
@@ -96,6 +97,7 @@ void split_lines(struct editor_buf *buf)
 
 static void update_cursor_position(struct editor_buf *buf)
 {
+    enum intr_status old_status=intr_disable();
     uint32_t current_line = buf->cursor_y + buf->display_start_line;
     if (current_line >= buf->line_count)
     {
@@ -136,6 +138,7 @@ static void update_cursor_position(struct editor_buf *buf)
             buf->cursor_y = 0;
     }
     set_cursor(buf->cursor_y * 80 + buf->cursor_x);
+    intr_set_status(old_status);
 }
 
 void display_content(struct editor_buf *buf)
@@ -238,9 +241,14 @@ static void delete_char(struct editor_buf *buf)
 
 void editor_main(const char *filename)
 {
+    intr_disable();
     clean_screen();
+    intr_enable();
     struct editor_buf buf;
     buf.content = malloc(BUF_SIZE);
+    if(buf.content==NULL){
+        return;
+    }
     memset(buf.content, 0, BUF_SIZE);
     buf.capacity = BUF_SIZE;
     buf.size = 0;
