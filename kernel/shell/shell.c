@@ -587,6 +587,7 @@ static void process_touch_command(void *_cmd_line)
         return;
     }
     int fd = openFile(buf, O_CREAT);
+    closeFile(fd);
 }
 
 static void process_edit_command(void *_cmd_line)
@@ -676,8 +677,11 @@ static void process_cp_command(void *_cmd_line)
     filesize size_dst = getfilesize(fd_dst);
     if (size_dst > 0)
     {
-        seekp(fd_dst, 0, SEEK_SET);
-        remove_some_cotent(fd_dst, size_dst);
+        closeFile(fd_dst);
+        delete(dst_path);
+        fd_dst = openFile(dst_path, O_CREAT);
+        closeFile(fd_dst);
+        fd_dst = openFile(dst_path, O_RDWR);
     }
     char buf[size_src];
     seekp(fd_src, 0, SEEK_SET);
