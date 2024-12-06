@@ -668,7 +668,6 @@ static void process_cp_command(void *_cmd_line)
         int fd = openFile(dst_path, O_CREAT);
         closeFile(fd);
     }
-    printf("src_path: %s, dst_path: %s\n", src_path, dst_path);
     // int result = copyFile(dst_path, src_path);
     // printf("result: %d\n", result);
     int fd_dst = openFile(dst_path, O_RDWR);
@@ -678,7 +677,7 @@ static void process_cp_command(void *_cmd_line)
     if (size_dst > 0)
     {
         seekp(fd_dst, 0, SEEK_SET);
-        remove_some_cotent(fd_dst, getfilesize(fd_dst));
+        remove_some_cotent(fd_dst, size_dst);
     }
     char buf[size_src];
     seekp(fd_src, 0, SEEK_SET);
