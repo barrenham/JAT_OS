@@ -70,7 +70,7 @@ static char cmd_line_exec_bat[cmd_len] = {0};
 static char cmd_line_rm_bat[cmd_len] = {0};
 static char cmd_line_touch_bat[cmd_len] = {0};
 static char cmd_line_edit_bat[cmd_len] = {0};
-
+static char cmd_line_rmdir_bat[cmd_len] = {0};
 static struct history cmd_history;
 
 static bool isChar(c)
@@ -88,6 +88,41 @@ char cwd_cache[64] = {0};
 void print_prompt(void)
 {
     printf("[user&localhost %s]$ ", cwd_cache);
+}
+
+static void process_rmdir_command(void* _cmd_line){
+    char *cmd_line = _cmd_line;
+    int i=5;
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+    {
+        i++;
+    }
+    char buf[MAX_PATH_LENGTH] = {0};
+    int idx = 0;
+    strcpy(buf, cwd_cache);
+    idx = strlen(buf);
+    if (buf[idx - 1] != '/')
+    {
+        buf[idx++] = '/';
+    }
+    while (cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+    {
+        buf[idx++] = cmd_line[i++];
+    }
+
+    buf[idx] = '\0'; // 终止字符串
+    if (get_file_type(buf) != FT_DIRECTORY)
+    {
+        return;
+    }
+    if (delete (buf) != -1)
+    {
+        printf("Dir removed: %s\n", buf);
+    }
+    else
+    {
+        printf("Failed to remove dir: %s\n", buf);
+    }
 }
 
 static void process_cat_command(void *_cmd_line)
@@ -660,9 +695,14 @@ void my_shell(void)
                 printf("\n");
             }
         }
-        if(cmd_line[0]=='r'&&cmd_line[1]=='m'){
+        if(cmd_line[0]=='r'&&cmd_line[1]=='m'&&cmd_line[2]!='d'){
             strcpy(cmd_line_rm_bat,cmd_line);
             thread_start("rm", SECOND_PRIO, process_rm_command, (cmd_line_rm_bat));
+            thread_wait();
+        }
+        if(cmd_line[0]=='r'&&cmd_line[1]=='m'&&cmd_line[2]=='d'&&cmd_line[3]=='i'&&cmd_line[4]=='r'){
+            strcpy(cmd_line_rmdir_bat,cmd_line);
+            thread_start("rmdir", SECOND_PRIO, process_rmdir_command, (cmd_line_rmdir_bat));
             thread_wait();
         }
         if(cmd_line[0]=='e'&&cmd_line[1]=='x'&&cmd_line[2]=='e'&&cmd_line[3]=='c'){
