@@ -87,10 +87,7 @@ int main(void) {
 	*/
 	thread_start("shell",FIRST_PRIO,my_shell,NULL);
 	//process_execute(my_shell,"shell");
-	while(1){
-		int cpu_delay = 1000000;
-		while(cpu_delay-->0);
-	}
+	while(1);
 	return 0;
 }
 

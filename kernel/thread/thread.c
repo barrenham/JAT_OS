@@ -373,7 +373,7 @@ void thread_exit(void){
     intr_set_status(old_status);
 }
 
-void thread_cleaner(void){
+void thread_cleaner(void* args){
     while(1){
         struct list_elem* elem=thread_all_list.head.next;
         while(elem->next!=NULL){

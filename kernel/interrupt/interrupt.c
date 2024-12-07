@@ -4,6 +4,7 @@
 #include "../include/io.h"
 #include "../include/print.h"
 #include "../include/memory.h"
+#include "../include/thread.h"
 
 #define IDT_DESC_CNT        0x81
 
@@ -71,6 +72,13 @@ general_intr_handler(uint8_t vec_nr)
     set_cursor(0);
     put_string("!!! exception message begin !!!\n");
     put_string(intr_name[vec_nr]);
+    put_char('\n');
+    struct intr_stack* stack=((uint32_t)running_thread())+4096-sizeof(struct intr_stack);
+    if(vec_nr==13){
+        put_string("eip:");
+        put_int(stack->eip);
+        put_char(' ');
+    }
     if(vec_nr==14){
         int page_fault_vaddr=0;
         asm volatile("movl %%cr2, %0":"=r"(page_fault_vaddr));
@@ -84,7 +92,6 @@ general_intr_handler(uint8_t vec_nr)
         }
     }
     put_string("\n!!! exception message end !!!\n");
-    
     while(1);
 }
 

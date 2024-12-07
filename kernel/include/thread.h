@@ -104,7 +104,7 @@ void thread_block(enum task_status stat);
 
 void thread_unblock(struct task_struct* pthread);
 
-void thread_cleaner(void);
+void thread_cleaner(void*);
 
 void 
 thread_create(struct task_struct*pthread,

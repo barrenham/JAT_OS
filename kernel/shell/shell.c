@@ -432,17 +432,17 @@ static void modify_cwd_cache(const char *filepath)
     ;
 }
 
-static void ls(void)
+static void ls(void* args)
 {
     sys_dir_list(cwd_cache);
 }
 
-static void lsi(void)
+static void lsi(void* args)
 {
     sys_dir_list_info(cwd_cache);
 }
 
-static void ps(void)
+static void ps(void* args)
 {
     struct list_elem *elem = thread_all_list.head.next;
     while (elem->next != NULL)
@@ -708,7 +708,7 @@ static void process_cp_command(void *_cmd_line)
     free(buf);
 }
 
-void my_shell(void)
+void my_shell(void* args)
 {
     history_init(&cmd_history);
     cwd_cache[0] = '/';

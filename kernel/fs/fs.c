@@ -428,8 +428,12 @@ int32_t sys_opendir(const char* pathname,uint8_t flags){
 }
 
 int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
-    uint32_t _fd=fd_local2global(fd);
     int32_t result=-1;
+    if(fd==stdout_no){
+        result=sys_write(fd,buf,0,bufsize);
+        return result;
+    }
+    uint32_t _fd=fd_local2global(fd);
     if(!is_pipe(fd)){
         result=sys_write(fd,buf,file_table[_fd].fd_pos,bufsize);
         if(result!=-1){
