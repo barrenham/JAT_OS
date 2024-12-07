@@ -95,9 +95,43 @@ void split_lines(struct editor_buf *buf)
     }
 }
 
+void display_content(struct editor_buf *buf)
+{
+    uint32_t current_line = buf->display_start_line;
+    uint32_t end_line = buf->display_end_line;
+    if (end_line > buf->line_count)
+        end_line = buf->line_count;
+    console_acquire();
+    clean_screen();
+    set_cursor(0);
+    console_release();
+    for (uint32_t line_num = current_line; line_num < end_line; line_num++)
+    {
+        uint32_t line_start = buf->line_offsets[line_num];
+        uint32_t line_end;
+        if (line_num + 1 < buf->line_count)
+            line_end = buf->line_offsets[line_num + 1] - 1;
+        else
+            line_end = buf->size;
+        for (uint32_t i = line_start; i < line_end; i++)
+        {
+            if (buf->content[i] == '\0' || buf->content[i] == '\b')
+                printf(" ");
+            else
+                printf("%c", buf->content[i]);
+        }
+        printf("\n");
+    }
+    console_acquire();
+    set_cursor(80 * 22);
+    console_release();
+    printf("-------------------------------------------------\n\n");
+    printf("File: %s %s %d\n", buf->filename, buf->edit_mode ? "-- INSERT --" : "-- NORMAL --", buf->size);
+    printf("Line: %d/%d ", buf->cursor_y + buf->display_start_line + 1, buf->line_count);
+}
+
 static void update_cursor_position(struct editor_buf *buf)
 {
-    enum intr_status old_status=intr_disable();
     uint32_t current_line = buf->cursor_y + buf->display_start_line;
     if (current_line >= buf->line_count)
     {
@@ -137,40 +171,12 @@ static void update_cursor_position(struct editor_buf *buf)
         else
             buf->cursor_y = 0;
     }
+    console_acquire();
     set_cursor(buf->cursor_y * 80 + buf->cursor_x);
-    intr_set_status(old_status);
+    console_release();
 }
 
-void display_content(struct editor_buf *buf)
-{
-    uint32_t current_line = buf->display_start_line;
-    uint32_t end_line = buf->display_end_line;
-    if (end_line > buf->line_count)
-        end_line = buf->line_count;
-    clean_screen();
-    set_cursor(0);
-    for (uint32_t line_num = current_line; line_num < end_line; line_num++)
-    {
-        uint32_t line_start = buf->line_offsets[line_num];
-        uint32_t line_end;
-        if (line_num + 1 < buf->line_count)
-            line_end = buf->line_offsets[line_num + 1] - 1;
-        else
-            line_end = buf->size;
-        for (uint32_t i = line_start; i < line_end; i++)
-        {
-            if (buf->content[i] == '\0' || buf->content[i] == '\b')
-                printf(" ");
-            else
-                printf("%c", buf->content[i]);
-        }
-        printf("\n");
-    }
-    set_cursor(80 * 22);
-    printf("-------------------------------------------------\n\n");
-    printf("File: %s %s %d\n", buf->filename, buf->edit_mode ? "-- INSERT --" : "-- NORMAL --", buf->size);
-    printf("Line: %d/%d ", buf->cursor_y + buf->display_start_line + 1, buf->line_count);
-}
+
 
 static void insert_char(struct editor_buf *buf, char c)
 {
@@ -241,9 +247,9 @@ static void delete_char(struct editor_buf *buf)
 
 void editor_main(const char *filename)
 {
-    intr_disable();
+    console_acquire();
     clean_screen();
-    intr_enable();
+    console_release();
     struct editor_buf buf;
     buf.content = malloc(BUF_SIZE);
     if(buf.content==NULL){
@@ -283,18 +289,23 @@ void editor_main(const char *filename)
     bool press_down = False;
     while (1)
     {
-        intr_disable();
+        console_acquire();
         clean_screen();
         set_cursor(0);
+        console_release();
         display_content(&buf);
         if (first_open)
         {
+            console_acquire();
             set_cursor(0);
+            console_release();
             first_open = False;
         }
-        else
+        else{
+            console_acquire();
             set_cursor(buf.cursor_y * 80 + buf.cursor_x);
-        intr_enable();
+            console_release();
+        }     
         char c = getchar();
         if (!buf.edit_mode)
         {
@@ -318,12 +329,11 @@ void editor_main(const char *filename)
             }
             else if (c == 'q')
             {
-                intr_disable();
+                console_acquire();
                 clean_screen();
                 set_cursor(0);
-                intr_enable();
+                console_release();
                 free(buf.line_offsets);
-                free(buf.filename);
                 free(buf.content);
                 return;
             }
@@ -388,9 +398,7 @@ void editor_main(const char *filename)
                         if (buf.cursor_x > line_length)
                             buf.cursor_x = line_length;
                         update_pos(&buf);
-                        intr_disable();
                         display_content(&buf);
-                        intr_enable();
                     }
                 }
             }

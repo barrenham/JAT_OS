@@ -193,6 +193,8 @@ put_char:
 global set_cursor
 set_cursor:
     pushad
+    mov     ax,     SELECTOR_VIDEO
+    mov     gs,     ax
     mov     ebx,    [esp+36]
     
     mov     dx,     0x03d4
@@ -215,6 +217,8 @@ set_cursor:
 global clean_screen
 clean_screen:
     pushad
+    mov     ax,     SELECTOR_VIDEO
+    mov     gs,     ax
     mov     ebx,    0
     mov     ecx,    2000
 loop_cls:
