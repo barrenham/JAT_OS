@@ -132,6 +132,7 @@ void display_content(struct editor_buf *buf)
 
 static void update_cursor_position(struct editor_buf *buf)
 {
+    // enum intr_status old_status=intr_disable();
     uint32_t current_line = buf->cursor_y + buf->display_start_line;
     if (current_line >= buf->line_count)
     {
@@ -171,6 +172,7 @@ static void update_cursor_position(struct editor_buf *buf)
         else
             buf->cursor_y = 0;
     }
+    console_acquire();
     console_acquire();
     set_cursor(buf->cursor_y * 80 + buf->cursor_x);
     console_release();
@@ -247,12 +249,14 @@ static void delete_char(struct editor_buf *buf)
 
 void editor_main(const char *filename)
 {
+    // asm volatile("xchg %%bx, %%bx" ::: "memory");
     console_acquire();
     clean_screen();
     console_release();
     struct editor_buf buf;
     buf.content = malloc(BUF_SIZE);
-    if(buf.content==NULL){
+    if (buf.content == NULL)
+    {
         return;
     }
     memset(buf.content, 0, BUF_SIZE);
@@ -291,6 +295,8 @@ void editor_main(const char *filename)
     {
         console_acquire();
         clean_screen();
+        console_release();
+        console_acquire();
         set_cursor(0);
         console_release();
         display_content(&buf);
@@ -301,11 +307,12 @@ void editor_main(const char *filename)
             console_release();
             first_open = False;
         }
-        else{
+        else
+        {
             console_acquire();
             set_cursor(buf.cursor_y * 80 + buf.cursor_x);
             console_release();
-        }     
+        }
         char c = getchar();
         if (!buf.edit_mode)
         {
@@ -331,9 +338,12 @@ void editor_main(const char *filename)
             {
                 console_acquire();
                 clean_screen();
+                console_release();
+                console_acquire();
                 set_cursor(0);
                 console_release();
                 free(buf.line_offsets);
+                // free(buf.filename);
                 free(buf.content);
                 return;
             }

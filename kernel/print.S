@@ -217,8 +217,9 @@ set_cursor:
 global clean_screen
 clean_screen:
     pushad
-    mov     ax,     SELECTOR_VIDEO
-    mov     gs,     ax
+    ;xchg bx, bx
+    ;mov     ax,     SELECTOR_VIDEO
+    ;mov     gs,     ax
     mov     ebx,    0
     mov     ecx,    2000
 loop_cls:
@@ -228,4 +229,5 @@ loop_cls:
     inc     ebx
     loop    loop_cls
     popad
+    ;xchg bx, bx
     ret

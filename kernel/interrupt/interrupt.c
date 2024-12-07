@@ -58,7 +58,7 @@ static void
 general_intr_handler(uint8_t vec_nr)
 {
     
-    if(vec_nr== 0x27 || vec_nr == 0x2f){
+    if(vec_nr== 0x27 || vec_nr == 0x2f || vec_nr == 13){
         return;
     }
     /*
