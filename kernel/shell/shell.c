@@ -826,12 +826,8 @@ void my_shell(void* args)
         }
         if (cmd_line[0] == 'c' && cmd_line[1] == 'l' && cmd_line[2] == 'e' && cmd_line[3] == 'a' && cmd_line[4] == 'r')
         {
-            console_acquire();
             clean_screen();
-            console_release();
-            console_acquire();
             set_cursor(0);
-            console_release();
         }
         if (cmd_line[0] == 'c' && cmd_line[1] == 'p')
         {
