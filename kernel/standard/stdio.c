@@ -88,7 +88,7 @@ int32_t putchar(int32_t c){
 }
 
 int32_t puts(const char* s){
-    char buf[1024]={0};
+    char buf[256]={0};
     strcpy(buf,s);
     return write(stdout_no,buf,strlen(buf));
 }

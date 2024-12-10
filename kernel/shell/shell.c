@@ -15,9 +15,10 @@
 #include "../include/syscall.h"
 #include "../include/process.h"
 #include "../include/history.h"
-
+#include "../include/exec.h"
 #include "../include/editor.h"
 #include "../include/print.h"
+#include "../include/log.h"
 
 #define cmd_len 128
 #define MAX_ARG_NR 16
@@ -505,7 +506,7 @@ static void process_program()
     strcpy(argv[0], buf);
     if (get_file_type(argv[0]) != FT_REGULAR)
     {
-        printf("%s No such file or directory\n", argv[0]);
+        printk("%s No such file or directory\n", argv[0]);
     }
     else
     {
@@ -718,6 +719,7 @@ void my_shell(void* args)
         print_prompt();
         memset(cmd_line, 0, cmd_len);
         readline(cmd_line, cmd_len);
+        log_printk(DEVICE,"input %s \n",cmd_line);
         if (cmd_line[0] == 0)
         {
             continue;
@@ -795,11 +797,6 @@ void my_shell(void* args)
             strcpy(cmd_line_rmdir_bat, cmd_line);
             thread_start("rmdir", SECOND_PRIO, process_rmdir_command, (cmd_line_rmdir_bat));
             thread_wait();
-        }
-        if (cmd_line[0] == 'e' && cmd_line[1] == 'x' && cmd_line[2] == 'e' && cmd_line[3] == 'c')
-        {
-            strcpy(cmd_line_exec_bat, cmd_line);
-            process_execute(((uint32_t)process_program), "loader");
         }
         if (cmd_line[0] == 'r' && cmd_line[1] == 'm')
         {
