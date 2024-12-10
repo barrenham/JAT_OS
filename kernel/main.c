@@ -33,7 +33,6 @@ int main(void) {
 	put_string("I am kernel\n");
 	init_all();
 	intr_enable();
-	logEnable();
 	char* buf=(char*)sys_malloc(0x200);
 	int fd0=sys_open("/welcome.txt",O_RDWR);
 	int cnt=0;
@@ -84,6 +83,7 @@ int main(void) {
 	char* lptr=sys_malloc(102400);
 	sys_free(lptr);
 	*/
+	logEnable();
 	thread_start("shell",FIRST_PRIO,my_shell,NULL);
 	//process_execute(my_shell,"shell");
 	while(1);
