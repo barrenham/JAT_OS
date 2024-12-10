@@ -436,12 +436,12 @@ int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
     }
     uint32_t _fd=fd_local2global(fd);
     if(!is_pipe(fd)){
+        log_printk(FILE,"trying to write to file\n ");
         result=sys_write(fd,buf,file_table[_fd].fd_pos,bufsize);
         if(result!=-1){
             file_table[_fd].fd_pos+=bufsize;
         }
     }else{
-        log_printk(FILE,"trying to write to file\n ");
         result=pipe_write(fd,buf,bufsize);
     }
     return result;
@@ -452,8 +452,8 @@ int32_t sys_write(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
         return -1;
     }
     if(fd==stdout_no){
-        char tmp_buf[1024]={0};
-        ASSERT(bufsize<1024);
+        char tmp_buf[256]={0};
+        ASSERT(bufsize<256);
         memcpy(tmp_buf,buf,bufsize);
         console_put_string(tmp_buf);
         return -1;
@@ -526,6 +526,9 @@ int32_t sys_remove_some_content(int32_t fd,int32_t offset,int32_t size){
         return -1;
     }
     uint32_t _fd=fd_local2global(fd);
+    if(_fd<0){
+        return -1;
+    }
     return file_remove_some_content(&file_table[_fd],offset,size);
 }
 
@@ -896,6 +899,9 @@ int32_t user_file_close(int32_t fd){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
     log_printk(SYSCALL,"close file descriptor %d\n",fd);
+    if(file_table[_fd].fd_inode->i_open_cnts==1){
+        log_printk(DEVICE,"sync file to disk %s\n",cur_part->my_disk->name);
+    }
     int32_t result=sys_close(fd);
     return result;
 }

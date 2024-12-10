@@ -313,6 +313,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             ide_read(cur_part->my_disk,all_blocks[i],all_blocks+12,1);
         }
     }
+    if(all_blocks[0]==0){
+        printk("writing to a new file!\n");
+    }
     uint32_t block_start=(offset/(BLOCK_SIZE));
     uint32_t in_block_offset=(offset%(BLOCK_SIZE));
     uint32_t bytes_passed=0;
@@ -331,6 +334,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                     return -1;
                 }
                 all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }else{
                 ;
@@ -346,11 +352,14 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                         sys_free(all_blocks);
                         return -1;
                     }
-                    secondary_lba=block_idx;
+                    secondary_lba=secondary_block_idx;
                     memset(all_blocks+12,0,BLOCK_SIZE);
-                    all_blocks[blocks_passed]=secondary_block_idx;
+                    all_blocks[blocks_passed]=block_idx;
                     ide_write(cur_part->my_disk,secondary_block_idx,all_blocks+12,1);
-                    File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                    File->fd_inode->i_sectors[blocks_passed]=secondary_block_idx;
+                    ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                    memset(io_buf,0,BLOCK_SIZE);
+                    ide_write(cur_part->my_disk,block_idx,io_buf,1);
                     bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                     bitmap_sync(cur_part,secondary_block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                 }else{
@@ -367,6 +376,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                     }
                     all_blocks[blocks_passed]=block_idx;
                     ide_write(cur_part->my_disk,secondary_lba,all_blocks+12,1);
+                    ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                    memset(io_buf,0,BLOCK_SIZE);
+                    ide_write(cur_part->my_disk,block_idx,io_buf,1);
                     bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                 }else{
                     ;
@@ -392,6 +404,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             }
             all_blocks[blocks_passed]=block_idx;
             ide_write(cur_part->my_disk,secondary_lba,all_blocks+12,1);
+            ide_read(cur_part->my_disk,block_idx,io_buf,1);
+            memset(io_buf,0,BLOCK_SIZE);
+            ide_write(cur_part->my_disk,block_idx,io_buf,1);
             bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
         }
     }else if(blocks_passed==12){
@@ -404,11 +419,14 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 sys_free(all_blocks);
                 return -1;
             }
-            secondary_lba=block_idx;
+            secondary_lba=secondary_block_idx;
             memset(all_blocks+12,0,BLOCK_SIZE);
-            all_blocks[blocks_passed]=secondary_block_idx;
+            all_blocks[blocks_passed]=block_idx;
             ide_write(cur_part->my_disk,secondary_block_idx,all_blocks+12,1);
-            File->fd_inode->i_sectors[blocks_passed]=block_idx;
+            File->fd_inode->i_sectors[blocks_passed]=secondary_block_idx;
+            ide_read(cur_part->my_disk,block_idx,io_buf,1);
+            memset(io_buf,0,BLOCK_SIZE);
+            ide_write(cur_part->my_disk,block_idx,io_buf,1);
             bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             bitmap_sync(cur_part,secondary_block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
         }
@@ -422,6 +440,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 return -1;
             }
             all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
+            ide_read(cur_part->my_disk,block_idx,io_buf,1);
+            memset(io_buf,0,BLOCK_SIZE);
+            ide_write(cur_part->my_disk,block_idx,io_buf,1);
             bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
         }
     }
@@ -447,6 +468,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 }
                 all_blocks[blocks_passed]=block_idx;
                 ide_write(cur_part->my_disk,secondary_lba,all_blocks+12,1);
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }
         }else if(blocks_passed==12){
@@ -464,6 +488,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 all_blocks[blocks_passed]=secondary_block_idx;
                 ide_write(cur_part->my_disk,secondary_block_idx,all_blocks+12,1);
                 File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                 bitmap_sync(cur_part,secondary_block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }
@@ -477,6 +504,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                     return -1;
                 }
                 all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }
         }

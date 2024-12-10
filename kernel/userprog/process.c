@@ -14,6 +14,7 @@
 #include "../include/file.h"
 #include "../include/inode.h"
 #include "../include/pipe.h"
+#include "../include/log.h"
 
 extern void intr_exit(void);
 extern struct task_struct* main_thread;
@@ -264,6 +265,7 @@ pid_t sys_fork(void){
     ASSERT(!elem_find(&thread_all_list,&child_thread->all_list_tag));
     list_append(&thread_all_list,&child_thread->all_list_tag);
     sema_init(&(child_thread->waiting_sema),0);
+    log_printk(PROCESS,"%s forking a new process %s\n",cur->name,child_thread->name);
     //intr_set_status(old_status);
     return child_thread->pid;
 }

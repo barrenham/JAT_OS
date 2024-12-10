@@ -14,7 +14,7 @@ bool log_write=False;
 static struct lock log_lock;
 
 void log_init(){
-    lock_init(&log_init);
+    lock_init(&log_lock);
     int32_t fd=-1;
     log_write=False;
     fd=sys_open(LOG_PROCESS_FILE,O_CREAT);
@@ -25,16 +25,14 @@ void log_init(){
     sys_close(fd);
     fd=sys_open(LOG_DEVICE_FILE,O_CREAT);
     sys_close(fd);
-
-
 }
 
 void log_acquire(){
-    lock_acquire(&log_init);
+    lock_acquire(&log_lock);
 }
 
 void log_release(){
-    lock_release(&log_init);
+    lock_release(&log_lock);
 }
 
 static int32_t pos[20]={0};
@@ -44,6 +42,13 @@ static void process_log(char*str,char* filepath,enum log_type _log_type){
     if(pos[_log_type]>=1024*60){
         pos[_log_type]=0;
     }
+    
+    if(pos[_log_type]==0){
+        if(fd>=0){
+            sys_remove_some_content(fd,0,1024*60);
+        }
+    }
+    
     if(fd>=0){
         sys_write(fd,"[",pos[_log_type],1);
         pos[_log_type]++;
