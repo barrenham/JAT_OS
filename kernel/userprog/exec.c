@@ -136,6 +136,7 @@ static int32_t load(const char* pathname){
     ret=elf_header.e_entry;
 done:
     closeFile(fd);
+    log_printk(SYSCALL,"exec load done!\n");
     return ret;
 }
 
@@ -156,6 +157,7 @@ int32_t sys_execv(const char* path,const char* argv[]){
         }
         pathptr--;
     }
+    enum intr_status old_status=intr_disable();
     struct task_struct* cur=running_thread();
     memcpy(cur->name,&path[pathptr],TASK_NAME_LEN);
     cur->name[TASK_NAME_LEN-1]='\0';
@@ -166,7 +168,7 @@ int32_t sys_execv(const char* path,const char* argv[]){
     intr_0_stack->ecx=argc;
     intr_0_stack->eip=(void*)entry_point;
     intr_0_stack->esp=(void*)0xc0000000;
-
+    intr_set_status(old_status);
     asm volatile("movl %0, %%esp; jmp intr_exit" : :"g"(intr_0_stack):"memory");
     return 0;
 }

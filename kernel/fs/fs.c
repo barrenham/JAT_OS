@@ -852,6 +852,7 @@ int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type){
     if(file_table[_fd].fd_inode==NULL){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
+    log_printk(SYSCALL,"seek file to offset %d\n",offset);
     int32_t result=sys_seekp(fd,offset,wh_type);
     return result;
 }
@@ -865,6 +866,7 @@ int32_t user_file_remove_some_content(int32_t fd,int32_t size){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
     int32_t _size=((file_table[_fd].fd_pos+size)>=file_table[_fd].fd_inode->i_size)?(file_table[_fd].fd_inode->i_size-file_table[_fd].fd_pos):(size);
+    log_printk(SYSCALL,"file content removing\n");
     int32_t result=sys_remove_some_content(fd,file_table[_fd].fd_pos,_size);
     if(result==GENERAL_FAULT){
         return CANNOT_REMOVE_SOME_COTENT_FROM_FILE;
@@ -874,6 +876,7 @@ int32_t user_file_remove_some_content(int32_t fd,int32_t size){
 }
 
 int32_t user_delete(const char* pathname){
+    log_printk(SYSCALL,"trying to delete %s\n",pathname);
     int32_t result=sys_remove(pathname);
     if(result==-1){
         result=sys_delete_dir(pathname);
@@ -892,6 +895,7 @@ int32_t user_file_close(int32_t fd){
     if(file_table[_fd].fd_inode==NULL){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
+    log_printk(SYSCALL,"close file descriptor %d\n",fd);
     int32_t result=sys_close(fd);
     return result;
 }
@@ -908,6 +912,7 @@ filesize sys_get_file_size(file_descriptor fd){
     if(file_table[_fd].fd_inode->i_size >(uint32_t)70*1024){
         return GENERAL_FAULT;
     }
+    log_printk(SYSCALL,"getting file size\n");
     return file_table[_fd].fd_inode->i_size;
 }
 
@@ -925,6 +930,7 @@ enum file_types sys_get_file_attribute(const char* pathname){
         return -1;
     }
     dir_close(searched_record.parent_dir);
+    log_printk(SYSCALL,"getting file type\n");
     return searched_record.file_type;
 }
 
