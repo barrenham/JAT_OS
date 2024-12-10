@@ -14,6 +14,8 @@
 #include "include/syscall.h"
 #include "include/fs.h"
 #include "include/shell.h"
+#include "include/log.h"
+#include "include/stdio-kernel.h"
 
 extern struct ide_channel channels[2];
 
@@ -31,7 +33,6 @@ int main(void) {
 	put_string("I am kernel\n");
 	init_all();
 	intr_enable();
-	
 	char* buf=(char*)sys_malloc(0x200);
 	int fd0=sys_open("/welcome.txt",O_RDWR);
 	int cnt=0;
@@ -48,8 +49,6 @@ int main(void) {
 	}
 	free(buf);
 	sys_close(fd0);
-
-	/*log in the first program*/
 	{
 		uint32_t file_size=100*512;
 		void* prog_buf=sys_malloc(file_size);
@@ -65,7 +64,6 @@ int main(void) {
 		sys_free(prog_buf);
 		closeFile(fd);
 	}
-
 	thread_start("thread_cleaner",FIRST_PRIO,thread_cleaner,NULL);
 	//process_execute(u_prog_a, "u_prog_a");
 	//process_execute(u_prog_c, "test_write_file");
@@ -85,6 +83,7 @@ int main(void) {
 	char* lptr=sys_malloc(102400);
 	sys_free(lptr);
 	*/
+	logEnable();
 	thread_start("shell",FIRST_PRIO,my_shell,NULL);
 	//process_execute(my_shell,"shell");
 	while(1);

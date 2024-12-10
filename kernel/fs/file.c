@@ -304,13 +304,17 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
         sys_free(io_buf);
         return -1;
     }
-    uint32_t all_blocks[140]={0};
+    uint32_t* all_blocks=sys_malloc(140*sizeof(uint32_t));
+    memset(all_blocks,0,140*sizeof(uint32_t));
     for(int i=0;i<13;i++){
         all_blocks[i]=File->fd_inode->i_sectors[i];
         if(i==12&&all_blocks[i]!=0){
             secondary_lba=all_blocks[i];
             ide_read(cur_part->my_disk,all_blocks[i],all_blocks+12,1);
         }
+    }
+    if(all_blocks[0]==0){
+        printk("writing to a new file!\n");
     }
     uint32_t block_start=(offset/(BLOCK_SIZE));
     uint32_t in_block_offset=(offset%(BLOCK_SIZE));
@@ -326,9 +330,13 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 if(block_idx==-1){
                     printk("not enough block for data!\n");
                     sys_free(io_buf);
+                    sys_free(all_blocks);
                     return -1;
                 }
                 all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }else{
                 ;
@@ -341,13 +349,17 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                     if(block_idx==-1||secondary_block_idx==-1){
                         printk("not enough block for data!\n");
                         sys_free(io_buf);
+                        sys_free(all_blocks);
                         return -1;
                     }
-                    secondary_lba=block_idx;
+                    secondary_lba=secondary_block_idx;
                     memset(all_blocks+12,0,BLOCK_SIZE);
-                    all_blocks[blocks_passed]=secondary_block_idx;
+                    all_blocks[blocks_passed]=block_idx;
                     ide_write(cur_part->my_disk,secondary_block_idx,all_blocks+12,1);
-                    File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                    File->fd_inode->i_sectors[blocks_passed]=secondary_block_idx;
+                    ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                    memset(io_buf,0,BLOCK_SIZE);
+                    ide_write(cur_part->my_disk,block_idx,io_buf,1);
                     bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                     bitmap_sync(cur_part,secondary_block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                 }else{
@@ -359,10 +371,14 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                     if(block_idx==-1){
                         printk("not enough block for data!\n");
                         sys_free(io_buf);
+                        sys_free(all_blocks);
                         return -1;
                     }
                     all_blocks[blocks_passed]=block_idx;
                     ide_write(cur_part->my_disk,secondary_lba,all_blocks+12,1);
+                    ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                    memset(io_buf,0,BLOCK_SIZE);
+                    ide_write(cur_part->my_disk,block_idx,io_buf,1);
                     bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                 }else{
                     ;
@@ -383,10 +399,14 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             if(block_idx==-1){
                 printk("not enough block for data!\n");
                 sys_free(io_buf);
+                sys_free(all_blocks);
                 return -1;
             }
             all_blocks[blocks_passed]=block_idx;
             ide_write(cur_part->my_disk,secondary_lba,all_blocks+12,1);
+            ide_read(cur_part->my_disk,block_idx,io_buf,1);
+            memset(io_buf,0,BLOCK_SIZE);
+            ide_write(cur_part->my_disk,block_idx,io_buf,1);
             bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
         }
     }else if(blocks_passed==12){
@@ -396,13 +416,17 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             if(block_idx==-1||secondary_block_idx==-1){
                 printk("not enough block for data!\n");
                 sys_free(io_buf);
+                sys_free(all_blocks);
                 return -1;
             }
-            secondary_lba=block_idx;
+            secondary_lba=secondary_block_idx;
             memset(all_blocks+12,0,BLOCK_SIZE);
-            all_blocks[blocks_passed]=secondary_block_idx;
+            all_blocks[blocks_passed]=block_idx;
             ide_write(cur_part->my_disk,secondary_block_idx,all_blocks+12,1);
-            File->fd_inode->i_sectors[blocks_passed]=block_idx;
+            File->fd_inode->i_sectors[blocks_passed]=secondary_block_idx;
+            ide_read(cur_part->my_disk,block_idx,io_buf,1);
+            memset(io_buf,0,BLOCK_SIZE);
+            ide_write(cur_part->my_disk,block_idx,io_buf,1);
             bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             bitmap_sync(cur_part,secondary_block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
         }
@@ -412,9 +436,13 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             if(block_idx==-1){
                 printk("not enough block for data!\n");
                 sys_free(io_buf);
+                sys_free(all_blocks);
                 return -1;
             }
             all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
+            ide_read(cur_part->my_disk,block_idx,io_buf,1);
+            memset(io_buf,0,BLOCK_SIZE);
+            ide_write(cur_part->my_disk,block_idx,io_buf,1);
             bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
         }
     }
@@ -435,10 +463,14 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 if(block_idx==-1){
                     printk("not enough block for data!\n");
                     sys_free(io_buf);
+                    sys_free(all_blocks);
                     return -1;
                 }
                 all_blocks[blocks_passed]=block_idx;
                 ide_write(cur_part->my_disk,secondary_lba,all_blocks+12,1);
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }
         }else if(blocks_passed==12){
@@ -448,6 +480,7 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 if(block_idx==-1||secondary_block_idx==-1){
                     printk("not enough block for data!\n");
                     sys_free(io_buf);
+                    sys_free(all_blocks);
                     return -1;
                 }
                 secondary_lba=block_idx;
@@ -455,6 +488,9 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 all_blocks[blocks_passed]=secondary_block_idx;
                 ide_write(cur_part->my_disk,secondary_block_idx,all_blocks+12,1);
                 File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
                 bitmap_sync(cur_part,secondary_block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }
@@ -464,9 +500,13 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 if(block_idx==-1){
                     printk("not enough block for data!\n");
                     sys_free(io_buf);
+                    sys_free(all_blocks);
                     return -1;
                 }
                 all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
+                ide_read(cur_part->my_disk,block_idx,io_buf,1);
+                memset(io_buf,0,BLOCK_SIZE);
+                ide_write(cur_part->my_disk,block_idx,io_buf,1);
                 bitmap_sync(cur_part,block_idx-cur_part->sb->data_struct_lba,BLOCK_BITMAP);
             }
         }
@@ -491,6 +531,7 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
     inode_sync(cur_part,File->fd_inode,io_buf);
 
     sys_free(io_buf);
+    sys_free(all_blocks);
     return (bytes_passed - offset);
 }
 
@@ -553,7 +594,6 @@ int32_t file_read(struct file* File,const void* buf,uint32_t offset,uint32_t buf
 int32_t file_remove_some_content(struct file* File,uint32_t offset,uint32_t size){
     ASSERT(File->fd_inode!=NULL);
     if(offset>=File->fd_inode->i_size){
-        printk("remove exceed file size!\n");
         return -1;
     }
     
@@ -630,10 +670,57 @@ rollback:
         }
     }
     if(should_delete_some_block){
-        File->fd_inode->i_size=offset-1;
+        File->fd_inode->i_size=offset;
     }
     inode_sync(cur_part,File->fd_inode,io_buf);
     sys_free(io_buf);
     sys_free(all_blocks);
     return File->fd_inode->i_size;
+}
+
+int32_t log_file_open(uint32_t inode_no, uint8_t flag) {
+    // 获取一个空闲的文件描述符索引。
+    int fd_idx = log_get_free_slot_in_global();
+    if (fd_idx == -1) {
+        return -1; // 返回 -1 表示失败。
+    }
+    
+    // 打开 inode 并将其与文件描述符关联。
+    file_table[fd_idx].fd_inode = inode_open(cur_part, inode_no);
+    file_table[fd_idx].fd_pos = 0; // 初始化文件位置为 0。
+    file_table[fd_idx].fd_flag = flag; // 设置文件打开标志。
+    bool* write_deny = &file_table[fd_idx].fd_inode->write_deny; // 获取写入拒绝标志的指针。
+
+    // 检查文件打开模式，如果是只写或读写模式，则进行写入权限检查。
+    if (flag & O_WRONLY || flag & O_RDWR) {
+        enum intr_status old_status = intr_disable(); // 禁用中断以进行安全检查。
+        
+        if ((*write_deny)==False) { // 如果当前没有写入拒绝。
+            *write_deny = True; // 设置写入拒绝标志。
+            intr_set_status(old_status); // 恢复中断状态。
+        } else { // 如果当前文件不能被写入。
+            intr_set_status(old_status); // 恢复中断状态。
+            inode_close(file_table[fd_idx].fd_inode);
+            file_table[fd_idx].fd_inode=NULL;
+            return -1; // 返回 -1 表示失败。
+        }
+    }
+    
+    //这里有问题,但是不想改了。。。
+    return pcb_fd_install(fd_idx); // 返回新安装的文件描述符。
+}
+
+
+int32_t log_get_free_slot_in_global(void){
+    uint32_t fd_idx=3;
+    while(fd_idx<MAX_FILE_OPEN){
+        if(file_table[fd_idx].fd_inode==NULL){
+            break;
+        }
+        fd_idx++;
+    }
+    if(fd_idx==MAX_FILE_OPEN){
+        return -1;
+    }
+    return fd_idx;
 }

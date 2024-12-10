@@ -11,6 +11,7 @@
 #include "../include/ide.h"
 #include "../include/fs.h"
 #include "../include/dir.h"
+#include "../include/log.h"
 
 extern void tss_init();
 
@@ -29,4 +30,5 @@ init_all    (void)
     intr_enable();
     ide_init();
     filesys_init();
+    log_init();
 }

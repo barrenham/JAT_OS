@@ -120,4 +120,8 @@ int32_t file_read(struct file* File,const void* buf,uint32_t offset,uint32_t buf
  */
 int32_t file_remove_some_content(struct file* File,uint32_t offset,uint32_t size);
 
+int32_t log_file_open(uint32_t inode_no, uint8_t flag);
+
+int32_t log_get_free_slot_in_global(void);
+
 #endif
