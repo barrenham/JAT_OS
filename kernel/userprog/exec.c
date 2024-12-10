@@ -15,6 +15,7 @@
 #include "../include/inode.h"
 #include "../include/pipe.h"
 #include "../include/syscall.h"
+#include "../include/stdio-kernel.h"
 
 #define TASK_NAME_LEN 16
 

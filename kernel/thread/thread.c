@@ -381,6 +381,7 @@ void thread_cleaner(void* args){
             struct task_struct* pcb=elem2entry(struct task_struct,all_list_tag,elem);
             if(pcb->status==TASK_DIED){
                 //clean filetable
+                printk("cleaning: %s\n",pcb->name);
                 for(file_descriptor fd=3;fd<MAX_FILES_OPEN_PER_PROC;fd++){
                     if(pcb->fd_table[fd]!=-1){
                         file_descriptor _fd=fd_local2global(fd);
@@ -401,7 +402,7 @@ void thread_cleaner(void* args){
                             PG_SIZE));
                 }
                 mfree_page(PF_KERNEL,pcb,1);
-
+                printk("cleaned: %s\n",pcb->name);
             }
             elem=next_elem;
         }

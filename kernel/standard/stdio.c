@@ -67,7 +67,7 @@ uint32_t vsprintf(char* str,const char* format,va_list ap){
 uint32_t printf(const char* format,...){
     va_list args;
     va_start(args,format);
-    char buf[1024]={0};
+    char buf[256]={0};
     vsprintf(buf,format,args);
     va_end(args);
     return write(stdout_no,buf,strlen(buf));

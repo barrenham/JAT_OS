@@ -428,6 +428,7 @@ int32_t sys_opendir(const char* pathname,uint8_t flags){
 }
 
 int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
+    
     int32_t result=-1;
     if(fd==stdout_no){
         result=sys_write(fd,buf,0,bufsize);
@@ -440,6 +441,7 @@ int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
             file_table[_fd].fd_pos+=bufsize;
         }
     }else{
+        log_printk(FILE,"trying to write to file\n ");
         result=pipe_write(fd,buf,bufsize);
     }
     return result;
@@ -447,7 +449,6 @@ int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
 
 int32_t sys_write(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
     if(fd<0||fd==stdin_no){
-        printk("sys_write: fd error\n");
         return -1;
     }
     if(fd==stdout_no){
@@ -482,6 +483,9 @@ int32_t sys_read(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
 }
 
 int32_t sys_seekp(int32_t fd,int32_t offset,enum whence wh_type){
+    if(fd<=2){
+        return -1;
+    }
     uint32_t _fd=fd_local2global(fd);
     switch(wh_type){
         case SEEK_SET:
@@ -518,7 +522,7 @@ int32_t sys_seekp(int32_t fd,int32_t offset,enum whence wh_type){
 
 int32_t sys_remove_some_content(int32_t fd,int32_t offset,int32_t size){
     if(fd<3){
-        printk("sys_remove_some_content: fd error\n");
+        console_put_string("sys_remove_some_content: fd error\n");
         return -1;
     }
     uint32_t _fd=fd_local2global(fd);
@@ -639,7 +643,7 @@ int32_t sys_dir_list(const char*pathname){
         ide_read(cur_part->my_disk,all_blocks[i],io_buf,1);
         struct dir_entry* dirE=(struct dir_entry*)io_buf;
         int cnt=0;
-        printf("\n",NULL);
+        putchar('\n');
         while((cnt<(BLOCK_SIZE/(sizeof(struct dir_entry))))){
             if(dirE->filename[0]!='\0'){
                 dirE->filename[MAX_FILE_NAME_LEN-1]='\0';
@@ -689,7 +693,7 @@ int32_t sys_dir_list_info(const char*pathname){
         ide_read(cur_part->my_disk,all_blocks[i],io_buf,1);
         struct dir_entry* dirE=(struct dir_entry*)io_buf;
         int cnt=0;
-        printf("\n",NULL);
+        console_put_char('\n');
         while((cnt<(BLOCK_SIZE/(sizeof(struct dir_entry))))){
             if(dirE->filename[0]!='\0'){
                 dirE->filename[MAX_FILE_NAME_LEN-1]='\0';
@@ -793,10 +797,12 @@ delete_end:
 
 
 int32_t user_file_open(const char* pathname,uint8_t flags){
+    log_printk(FILE,"trying to open file %s\n",pathname);
     return sys_open(pathname,flags);
 }
 
 int32_t user_mkdir(const char* pathname){
+    log_printk(FILE,"trying to mkdir:%s\n",pathname);
     return sys_opendir(pathname,O_CREAT);
 }
 
@@ -921,3 +927,43 @@ enum file_types sys_get_file_attribute(const char* pathname){
     dir_close(searched_record.parent_dir);
     return searched_record.file_type;
 }
+
+
+
+int32_t sys_open_log(const char* pathname,uint8_t flags){
+    if(pathname[strlen(pathname)-1]=='/'){
+        return -1;
+    }
+    ASSERT(flags<=7);
+    int32_t fd=-1;
+
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+    if(searched_record.file_type==FT_DIRECTORY){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    uint32_t path_searched_depth=path_depth_cnt(searched_record.searched_path);
+
+    if(pathname_depth!=path_searched_depth){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+
+    if(!found&&!(flags&O_CREAT)){
+
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    {
+        fd=log_file_open(inode_no,flags);
+        dir_close(searched_record.parent_dir);
+    }
+    return fd;
+}
+
