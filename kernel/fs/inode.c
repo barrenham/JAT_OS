@@ -71,7 +71,8 @@ void inode_sync(struct partition* part, struct inode* inode, void* io_buf) {
 
     // 清除不必要的字段以避免写入脏数据。
     pure_inode.i_open_cnts = 0;
-    pure_inode.write_deny = False;
+    // pure_inode.write_deny = False;
+    pure_inode.flags &= ~INODE_WRITE_DENY;
     pure_inode.inode_tag.prev = pure_inode.inode_tag.next = NULL;
     char* inode_buf = (char*)io_buf; // 将 I/O 缓冲区转换为字符指针。
     if (inode_pos.two_sec) { // 如果 inode 跨越两个扇区。
@@ -196,8 +197,8 @@ void inode_init(uint32_t inode_no,struct inode* new_inode){
     new_inode->i_no=inode_no;
     new_inode->i_size=0;
     new_inode->i_open_cnts=0;
-    new_inode->write_deny=False;
-
+    // new_inode->write_deny=False;
+    new_inode->flags = 0;
     uint8_t sec_idx=0;
     while(sec_idx<13){
         new_inode->i_sectors[sec_idx]=0;

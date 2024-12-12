@@ -240,7 +240,8 @@ int32_t dir_create(struct dir* parent_dir,char* filename,uint8_t flag)
 
     file_table[fd_idx].fd_inode=new_file_inode;
     file_table[fd_idx].fd_pos=0;
-    file_table[fd_idx].fd_inode->write_deny=False;
+    // file_table[fd_idx].fd_inode->write_deny=False;
+    file_table[fd_idx].fd_inode->flags &= ~INODE_WRITE_DENY;
     file_table[fd_idx].fd_flag=flag;
     
     struct dir_entry new_dir_entry;

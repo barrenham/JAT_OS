@@ -11,6 +11,7 @@
 #include "../include/thread.h"
 #include "../include/print.h"
 #include "../include/interrupt.h"
+#include "../include/crypto.h"
 
 #define BUF_SIZE (70 * 1024)
 
@@ -176,8 +177,6 @@ static void update_cursor_position(struct editor_buf *buf)
     console_release();
 }
 
-
-
 static void insert_char(struct editor_buf *buf, char c)
 {
     if (buf->size >= buf->capacity - 1)
@@ -269,9 +268,8 @@ void editor_main(const char *filename)
     console_release();
     struct editor_buf buf;
     buf.content = malloc(BUF_SIZE);
-    if(buf.content==NULL){
+    if (buf.content == NULL)
         return;
-    }
     memset(buf.content, 0, BUF_SIZE);
     buf.capacity = BUF_SIZE;
     buf.size = 0;
@@ -290,9 +288,27 @@ void editor_main(const char *filename)
     }
     else
     {
+        set_cursor(0);
         printf("Failed to open file: %s\n", filename);
         return;
     }
+    // int flag;
+    // if (flag & INODE_ENCRYPTED)
+    // {
+    //     set_cursor(0);
+    //     printf("File is encrypted.\n");
+    //     uint8_t key[16];
+    //     printf("Enter key: ");
+    //     for (int i = 0; i < 16; i++)
+    //     {
+    //         key[i] = getchar() - '0';
+    //         printf("*");
+    //     }
+    //     uint32_t rk[32];
+    //     uint8_t iv[16] = {0};
+    //     SM4_KeySchedule(key, rk);
+    //     SM4_CBC_Decrypt(buf.content, size, &buf.size, iv, rk);
+    // }
     if (buf.size > 0 && buf.content[buf.size - 1] == '\0')
         buf.size--;
     buf.line_offsets = malloc(sizeof(uint32_t) * 10000);
@@ -302,8 +318,6 @@ void editor_main(const char *filename)
     int size1 = buf.size;
     buf.pos = 0;
     bool first_open = True;
-    bool press_up = False;
-    bool press_down = False;
     while (1)
     {
         console_acquire();
@@ -318,11 +332,12 @@ void editor_main(const char *filename)
             console_release();
             first_open = False;
         }
-        else{
+        else
+        {
             console_acquire();
             set_cursor(buf.cursor_y * 80 + buf.cursor_x);
             console_release();
-        }     
+        }
         char c = getchar();
         if (!buf.edit_mode)
         {
@@ -331,6 +346,11 @@ void editor_main(const char *filename)
                 buf.edit_mode = True;
             else if (c == 's')
             {
+                // uint8_t key[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6};
+                // uint32_t rk[32];
+                // uint8_t iv[16] = {0};
+                // SM4_KeySchedule(key, rk);
+                // SM4_CBC_Encrypt(buf.content, buf.size, BUF_SIZE, &buf.size, iv, rk);
                 fd = openFile(filename, O_RDWR);
                 if (fd != -1)
                 {

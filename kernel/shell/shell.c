@@ -19,6 +19,7 @@
 #include "../include/editor.h"
 #include "../include/print.h"
 #include "../include/log.h"
+#include "../include/crypto.h"
 
 #define cmd_len 128
 #define MAX_ARG_NR 16
@@ -73,6 +74,7 @@ static char cmd_line_touch_bat[cmd_len] = {0};
 static char cmd_line_edit_bat[cmd_len] = {0};
 static char cmd_line_cp_bat[cmd_len] = {0};
 static char cmd_line_rmdir_bat[cmd_len] = {0};
+static char cmd_line_enc_bat[cmd_len] = {0};
 static struct history cmd_history;
 
 static bool isChar(c)
@@ -670,8 +672,6 @@ static void process_cp_command(void *_cmd_line)
         int fd = openFile(dst_path, O_CREAT);
         closeFile(fd);
     }
-    // int result = copyFile(dst_path, src_path);
-    // printf("result: %d\n", result);
     int fd_dst = openFile(dst_path, O_RDWR);
     int fd_src = openFile(src_path, O_RDWR);
     filesize size_src = getfilesize(fd_src);
@@ -708,6 +708,60 @@ static void process_cp_command(void *_cmd_line)
     printf("File copied successfully from %s to %s\n", src_path, dst_path);
     free(buf);
 }
+
+// static void process_enc_command(void *_cmd_line)
+// {
+//     char *cmd_line = _cmd_line;
+//     int i = 3;
+//     while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+//         i++;
+//     if (cmd_line[i] == '\0')
+//     {
+//         printf("Usage: enc <source_file_path> <key>\n\n");
+//         return;
+//     }
+//     char src_path[MAX_PATH_LENGTH] = {0};
+//     int idx = 0;
+//     while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+//         src_path[idx++] = cmd_line[i++];
+//     src_path[idx] = '\0';
+//     while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+//         i++;
+//     uint8_t key[16] = {0};
+//     idx = 0;
+//     while (cmd_line[i] != ' ' && cmd_line[i] != '\0')
+//         key[idx++] = cmd_line[i++];
+//     key[idx] = '\0';
+//     if (src_path[0] == '\0' || key[0] == '\0')
+//     {
+//         printf("Usage: enc <source_file_path> <key>\n\n");
+//         return;
+//     }
+//     // uint32_t rk[32];
+//     // SM4_KeySchedule(key, rk);
+//     int fd = openFile(src_path, O_RDWR);
+//     filesize size = getfilesize(fd);
+//     char* buf = malloc(size + 100);
+//     seekp(fd, 0, SEEK_SET);
+//     if (read(fd, buf, size) != size)
+//     {
+//         printf("Failed to read file: %s\n", src_path);
+//         closeFile(fd);
+//         free(buf);
+//         return;
+//     }
+//     // SM4_ECB_Encrypt(buf, size, size + 100, &size, rk);
+//     encrypt_data(buf, size, key);
+//     seekp(fd, 0, SEEK_SET);
+//     if (write(fd, buf, size) != size)
+//     {
+//         printf("Failed to write file: %s\n", src_path);
+//         closeFile(fd);
+//         free(buf);
+//         return;
+//     }
+//     printf("File encrypted successfully: %s\n", src_path);
+// }
 
 void my_shell(void* args)
 {
@@ -832,6 +886,11 @@ void my_shell(void* args)
             thread_start("cp", SECOND_PRIO, process_cp_command, (cmd_line_cp_bat));
             thread_wait();
         }
+        // if (cmd_line[0] == 'e' && cmd_line[1] == 'n' && cmd_line[2] == 'c')
+        // {
+        //     thread_start("enc", SECOND_PRIO, process_enc_command, (cmd_line_enc_bat));
+        //     thread_wait();
+        // }
         history_push(&cmd_history, cmd_line);
     }
 }

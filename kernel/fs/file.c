@@ -174,7 +174,8 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
 
     file_table[fd_idx].fd_inode=new_file_inode;
     file_table[fd_idx].fd_pos=0;
-    file_table[fd_idx].fd_inode->write_deny=False;
+    // file_table[fd_idx].fd_inode->write_deny=False;
+    file_table[fd_idx].fd_inode->flags &= ~INODE_WRITE_DENY;
     file_table[fd_idx].fd_flag=flag;
     
     struct dir_entry new_dir_entry;
@@ -244,14 +245,17 @@ int32_t file_open(uint32_t inode_no, uint8_t flag) {
     file_table[fd_idx].fd_inode = inode_open(cur_part, inode_no);
     file_table[fd_idx].fd_pos = 0; // 初始化文件位置为 0。
     file_table[fd_idx].fd_flag = flag; // 设置文件打开标志。
-    bool* write_deny = &file_table[fd_idx].fd_inode->write_deny; // 获取写入拒绝标志的指针。
+    // bool* write_deny = &file_table[fd_idx].fd_inode->write_deny; // 获取写入拒绝标志的指针。
 
     // 检查文件打开模式，如果是只写或读写模式，则进行写入权限检查。
     if (flag & O_WRONLY || flag & O_RDWR) {
         enum intr_status old_status = intr_disable(); // 禁用中断以进行安全检查。
         
-        if ((*write_deny)==False) { // 如果当前没有写入拒绝。
-            *write_deny = True; // 设置写入拒绝标志。
+        // if ((*write_deny)==False) { // 如果当前没有写入拒绝。
+        //     *write_deny = True; // 设置写入拒绝标志。
+        if (!(file_table[fd_idx].fd_inode->flags & INODE_WRITE_DENY))
+        {
+            file_table[fd_idx].fd_inode->flags |= INODE_WRITE_DENY;
             intr_set_status(old_status); // 恢复中断状态。
         } else { // 如果当前文件不能被写入。
             intr_set_status(old_status); // 恢复中断状态。
@@ -283,7 +287,8 @@ int32_t file_close(struct file* file) {
         return -1;
     }
     // 解除对 inode 的写入拒绝状态。
-    file->fd_inode->write_deny = False;
+    // file->fd_inode->write_deny = False;
+    file->fd_inode->flags &= ~INODE_WRITE_DENY;
     // 关闭 inode 并释放相关资源。
     inode_close(file->fd_inode);
     file->fd_inode=NULL;
@@ -689,14 +694,17 @@ int32_t log_file_open(uint32_t inode_no, uint8_t flag) {
     file_table[fd_idx].fd_inode = inode_open(cur_part, inode_no);
     file_table[fd_idx].fd_pos = 0; // 初始化文件位置为 0。
     file_table[fd_idx].fd_flag = flag; // 设置文件打开标志。
-    bool* write_deny = &file_table[fd_idx].fd_inode->write_deny; // 获取写入拒绝标志的指针。
+    // bool* write_deny = &file_table[fd_idx].fd_inode->write_deny; // 获取写入拒绝标志的指针。
 
     // 检查文件打开模式，如果是只写或读写模式，则进行写入权限检查。
     if (flag & O_WRONLY || flag & O_RDWR) {
         enum intr_status old_status = intr_disable(); // 禁用中断以进行安全检查。
         
-        if ((*write_deny)==False) { // 如果当前没有写入拒绝。
-            *write_deny = True; // 设置写入拒绝标志。
+        // if ((*write_deny)==False) { // 如果当前没有写入拒绝。
+        //     *write_deny = True; // 设置写入拒绝标志。
+        if (!(file_table[fd_idx].fd_inode->flags & INODE_WRITE_DENY))
+        {
+            file_table[fd_idx].fd_inode->flags |= INODE_WRITE_DENY;
             intr_set_status(old_status); // 恢复中断状态。
         } else { // 如果当前文件不能被写入。
             intr_set_status(old_status); // 恢复中断状态。
