@@ -385,7 +385,6 @@ int SM4_ECB_Decrypt(uint8_t *data, uint32_t dataLen, uint32_t *outputLen, const 
 {
     if (!data || !outputLen || !rk || (dataLen % 16) != 0)
         return -1;
-    
     uint8_t temp[16];
     for (uint32_t i = 0; i < dataLen; i += 16)
     {

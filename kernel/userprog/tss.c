@@ -88,7 +88,6 @@ void tss_init(){
 
     uint64_t gdt_operand=\
     ((8*7-1)|((uint64_t)((uint64_t)0xc0000603)<<16));
-    put_int(gdt_operand);
     asm volatile("lgdt %0": :"m"(gdt_operand));
     asm volatile("ltr  %w0": :"r"(SELECTOR_TSS));
     put_string("tss_init and ltr done\n");

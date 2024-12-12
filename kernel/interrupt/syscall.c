@@ -100,6 +100,8 @@ void syscall_init(void){
     syscall_table[SYS_PIPE]=sys_pipe;
     syscall_table[SYS_EXEC]=sys_execv;
     syscall_table[SYS_GETCHAR]=sys_getchar;
+    syscall_table[SYS_SET_FILE_ATTR] = sys_set_file_attr;
+    syscall_table[SYS_GET_FILE_ATTR] = sys_get_file_attr;
     put_string("syscall_init done\n");
 }
 
@@ -206,4 +208,14 @@ int32_t execv(const char* filepath,char** argv){
 
 char getchar(){
     return _syscall0(SYS_GETCHAR);
+}
+
+void set_file_attr(file_descriptor fd, int flags)
+{
+    _syscall2(SYS_SET_FILE_ATTR, fd, flags);
+}
+
+int get_file_attr(file_descriptor fd)
+{
+    _syscall1(SYS_GET_FILE_ATTR, fd);
 }

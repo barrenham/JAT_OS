@@ -25,7 +25,9 @@ enum SYSCALL_NR{
     SYS_GETFILEATTRIBUTE,
     SYS_PIPE,
     SYS_EXEC,
-    SYS_GETCHAR
+    SYS_GETCHAR,
+    SYS_SET_FILE_ATTR,
+    SYS_GET_FILE_ATTR
 };
 
 uint32_t    sys_getpid(void);
@@ -50,5 +52,7 @@ int32_t     fork(void);
 enum file_types 
             get_file_type(const char* filepath);
 int32_t     pipe(int fd[2]);
+void        set_file_attr(file_descriptor fd, int flags);
+int         get_file_attr(file_descriptor fd);
 
 #endif

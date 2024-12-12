@@ -26,6 +26,7 @@ extern struct file file_table[MAX_FILE_OPEN];
 
 uint32_t fd_local2global(uint32_t local_fd){
     if(local_fd<0||local_fd>=MAX_FILES_OPEN_PER_PROC){
+        log_printk(SYSCALL, "local2global: local_fd < 0 or > 8");
         return FAILED_FD;
     }
     struct task_struct* cur=running_thread();
@@ -979,3 +980,35 @@ int32_t sys_open_log(const char* pathname,uint8_t flags){
     return fd;
 }
 
+void sys_set_file_attr(file_descriptor fd, int flags)
+{
+    if (fd <= 2)
+        return;
+    file_descriptor _fd = fd_local2global(fd);
+    if (_fd == FAILED_FD)
+        return;
+    ASSERT(file_table[_fd].fd_inode != NULL);
+    file_table[_fd].fd_inode->flags = flags;
+    log_printk(SYSCALL, "set file attr: %x\n", flags);
+    return;
+}
+
+int sys_get_file_attr(file_descriptor fd)
+{
+    if (fd <= 2)
+    {
+        log_printk(SYSCALL, "get file attr failed, fd <= 2\n");
+        return GENERAL_FAULT;
+    }
+    file_descriptor _fd = fd_local2global(fd);
+    if (_fd == FAILED_FD)
+    {
+        log_printk(SYSCALL, "get file attr failed, local2global failed\n");
+        return GENERAL_FAULT;
+    }
+
+    ASSERT(file_table[_fd].fd_inode != NULL);
+    int flags = file_table[_fd].fd_inode->flags;
+    log_printk(SYSCALL, "get file attr: %x\n", flags);
+    return flags;
+}

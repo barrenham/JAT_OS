@@ -292,23 +292,47 @@ void editor_main(const char *filename)
         printf("Failed to open file: %s\n", filename);
         return;
     }
-    // int flag;
-    // if (flag & INODE_ENCRYPTED)
-    // {
-    //     set_cursor(0);
-    //     printf("File is encrypted.\n");
-    //     uint8_t key[16];
-    //     printf("Enter key: ");
-    //     for (int i = 0; i < 16; i++)
-    //     {
-    //         key[i] = getchar() - '0';
-    //         printf("*");
-    //     }
-    //     uint32_t rk[32];
-    //     uint8_t iv[16] = {0};
-    //     SM4_KeySchedule(key, rk);
-    //     SM4_CBC_Decrypt(buf.content, size, &buf.size, iv, rk);
-    // }
+    fd = openFile(filename, O_RDWR);
+    int flag = get_file_attr(fd);
+    uint8_t key[16];
+    uint32_t rk[32];
+    if (flag & INODE_ENCRYPTED)
+    {
+        console_acquire();
+        set_cursor(0);
+        console_release();
+        printf("Enter key: ");
+        int i = 0;
+        char c;
+        while ((c = getchar()) != '\n')
+        {
+            key[i] = c;
+            i++;
+        }
+        int fd_keys = openFile("/keys", O_RDONLY);
+        int size = getfilesize(fd_keys);
+        char *keys_buf = malloc(size);
+        seekp(fd_keys, 0, SEEK_SET);
+        int j = 0;
+        read(fd_keys, keys_buf, size);
+        for (j = 0; j < size; j += MAX_PATH_LENGTH + 1 + MAX_KEY_LEN)
+        {
+            if (strcmp(keys_buf + j, buf.filename) == 0)
+                break;
+        }
+        if (strcmp(keys_buf + j + MAX_PATH_LENGTH + 1, key) != 0)
+        {
+            printf("Invalid key\n\n");
+            closeFile(fd);
+            closeFile(fd_keys);
+            free(keys_buf);
+            return;
+        }
+        closeFile(fd_keys);
+        SM4_KeySchedule(key, rk);
+        SM4_ECB_Decrypt(buf.content, buf.size, &buf.size, rk);
+    }
+    closeFile(fd);
     if (buf.size > 0 && buf.content[buf.size - 1] == '\0')
         buf.size--;
     buf.line_offsets = malloc(sizeof(uint32_t) * 10000);
@@ -346,11 +370,11 @@ void editor_main(const char *filename)
                 buf.edit_mode = True;
             else if (c == 's')
             {
-                // uint8_t key[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6};
-                // uint32_t rk[32];
-                // uint8_t iv[16] = {0};
-                // SM4_KeySchedule(key, rk);
-                // SM4_CBC_Encrypt(buf.content, buf.size, BUF_SIZE, &buf.size, iv, rk);
+                if (flag & INODE_ENCRYPTED)
+                {
+                    SM4_KeySchedule(key, rk);
+                    SM4_ECB_Encrypt(buf.content, buf.size, buf.size + 100, &buf.size, rk);
+                }
                 fd = openFile(filename, O_RDWR);
                 if (fd != -1)
                 {
@@ -363,6 +387,13 @@ void editor_main(const char *filename)
                     }
                     closeFile(fd);
                 }
+                console_acquire();
+                clean_screen();
+                set_cursor(0);
+                console_release();
+                free(buf.line_offsets);
+                free(buf.content);
+                return;
             }
             else if (c == 'q')
             {

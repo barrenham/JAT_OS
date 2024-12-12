@@ -96,4 +96,8 @@ int32_t sys_dir_list_info(const char*pathname);
 
 int32_t sys_open_log(const char* pathname,uint8_t flags);
 
+void sys_set_file_attr(file_descriptor fd, int flags);
+
+int sys_get_file_attr(file_descriptor fd);
+
 #endif
