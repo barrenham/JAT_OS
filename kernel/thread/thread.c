@@ -373,7 +373,7 @@ void thread_exit(void){
     intr_set_status(old_status);
 }
 
-void thread_cleaner(void){
+void thread_cleaner(void* args){
     while(1){
         struct list_elem* elem=thread_all_list.head.next;
         while(elem->next!=NULL){
@@ -381,10 +381,11 @@ void thread_cleaner(void){
             struct task_struct* pcb=elem2entry(struct task_struct,all_list_tag,elem);
             if(pcb->status==TASK_DIED){
                 //clean filetable
+                printk("cleaning: %s\n",pcb->name);
                 for(file_descriptor fd=3;fd<MAX_FILES_OPEN_PER_PROC;fd++){
                     if(pcb->fd_table[fd]!=-1){
                         file_descriptor _fd=fd_local2global(fd);
-                        if(_fd>=3){
+                        if(_fd>=0){
                             file_close(&file_table[_fd]);
                         }
                     }
@@ -401,7 +402,7 @@ void thread_cleaner(void){
                             PG_SIZE));
                 }
                 mfree_page(PF_KERNEL,pcb,1);
-
+                printk("cleaned: %s\n",pcb->name);
             }
             elem=next_elem;
         }

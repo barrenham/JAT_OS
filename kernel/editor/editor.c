@@ -10,6 +10,8 @@
 #include "../include/sync.h"
 #include "../include/thread.h"
 #include "../include/print.h"
+#include "../include/interrupt.h"
+#include "../include/crypto.h"
 
 #define BUF_SIZE (70 * 1024)
 
@@ -94,6 +96,41 @@ void split_lines(struct editor_buf *buf)
     }
 }
 
+void display_content(struct editor_buf *buf)
+{
+    uint32_t current_line = buf->display_start_line;
+    uint32_t end_line = buf->display_end_line;
+    if (end_line > buf->line_count)
+        end_line = buf->line_count;
+    console_acquire();
+    clean_screen();
+    set_cursor(0);
+    console_release();
+    for (uint32_t line_num = current_line; line_num < end_line; line_num++)
+    {
+        uint32_t line_start = buf->line_offsets[line_num];
+        uint32_t line_end;
+        if (line_num + 1 < buf->line_count)
+            line_end = buf->line_offsets[line_num + 1] - 1;
+        else
+            line_end = buf->size;
+        for (uint32_t i = line_start; i < line_end; i++)
+        {
+            if (buf->content[i] == '\0' || buf->content[i] == '\b')
+                printf(" ");
+            else
+                printf("%c", buf->content[i]);
+        }
+        printf("\n");
+    }
+    console_acquire();
+    set_cursor(80 * 22);
+    console_release();
+    printf("-------------------------------------------------\n\n");
+    printf("File: %s %s %d\n", buf->filename, buf->edit_mode ? "-- INSERT --" : "-- NORMAL --", buf->size);
+    printf("Line: %d/%d ", buf->cursor_y + buf->display_start_line + 1, buf->line_count);
+}
+
 static void update_cursor_position(struct editor_buf *buf)
 {
     uint32_t current_line = buf->cursor_y + buf->display_start_line;
@@ -135,38 +172,9 @@ static void update_cursor_position(struct editor_buf *buf)
         else
             buf->cursor_y = 0;
     }
+    console_acquire();
     set_cursor(buf->cursor_y * 80 + buf->cursor_x);
-}
-
-void display_content(struct editor_buf *buf)
-{
-    uint32_t current_line = buf->display_start_line;
-    uint32_t end_line = buf->display_end_line;
-    if (end_line > buf->line_count)
-        end_line = buf->line_count;
-    clean_screen();
-    set_cursor(0);
-    for (uint32_t line_num = current_line; line_num < end_line; line_num++)
-    {
-        uint32_t line_start = buf->line_offsets[line_num];
-        uint32_t line_end;
-        if (line_num + 1 < buf->line_count)
-            line_end = buf->line_offsets[line_num + 1] - 1;
-        else
-            line_end = buf->size;
-        for (uint32_t i = line_start; i < line_end; i++)
-        {
-            if (buf->content[i] == '\0' || buf->content[i] == '\b')
-                printf(" ");
-            else
-                printf("%c", buf->content[i]);
-        }
-        printf("\n");
-    }
-    set_cursor(80 * 22);
-    printf("-------------------------------------------------\n\n");
-    printf("File: %s %s %d\n", buf->filename, buf->edit_mode ? "-- INSERT --" : "-- NORMAL --", buf->size);
-    printf("Line: %d/%d ", buf->cursor_y + buf->display_start_line + 1, buf->line_count);
+    console_release();
 }
 
 static void insert_char(struct editor_buf *buf, char c)
@@ -222,7 +230,24 @@ static void delete_char(struct editor_buf *buf)
                 buf->cursor_x = line_length;
             }
             else
-                buf->cursor_x = 0;
+            {
+                if (buf->display_start_line > 0)
+                {
+                    buf->display_start_line--;
+                    buf->display_end_line--;
+                    uint32_t current_line = buf->cursor_y + buf->display_start_line;
+                    if (current_line >= buf->line_count)
+                        current_line = buf->line_count - 1;
+                    uint32_t line_start = buf->line_offsets[current_line];
+                    uint32_t line_end;
+                    if (current_line + 1 < buf->line_count)
+                        line_end = buf->line_offsets[current_line + 1] - 1;
+                    else
+                        line_end = buf->size;
+                    uint32_t line_length = line_end - line_start;
+                    buf->cursor_x = line_length;
+                }
+            }
         }
         else
         {
@@ -238,9 +263,13 @@ static void delete_char(struct editor_buf *buf)
 
 void editor_main(const char *filename)
 {
+    console_acquire();
     clean_screen();
+    console_release();
     struct editor_buf buf;
     buf.content = malloc(BUF_SIZE);
+    if (buf.content == NULL)
+        return;
     memset(buf.content, 0, BUF_SIZE);
     buf.capacity = BUF_SIZE;
     buf.size = 0;
@@ -259,9 +288,51 @@ void editor_main(const char *filename)
     }
     else
     {
+        set_cursor(0);
         printf("Failed to open file: %s\n", filename);
         return;
     }
+    fd = openFile(filename, O_RDWR);
+    int flag = get_file_attr(fd);
+    uint8_t key[16];
+    uint32_t rk[32];
+    if (flag & INODE_ENCRYPTED)
+    {
+        console_acquire();
+        set_cursor(0);
+        console_release();
+        printf("Enter key: ");
+        int i = 0;
+        char c;
+        while ((c = getchar()) != '\n')
+        {
+            key[i] = c;
+            i++;
+        }
+        int fd_keys = openFile("/keys", O_RDONLY);
+        int size = getfilesize(fd_keys);
+        char *keys_buf = malloc(size);
+        seekp(fd_keys, 0, SEEK_SET);
+        int j = 0;
+        read(fd_keys, keys_buf, size);
+        for (j = 0; j < size; j += MAX_PATH_LENGTH + 1 + MAX_KEY_LEN)
+        {
+            if (strcmp(keys_buf + j, buf.filename) == 0)
+                break;
+        }
+        if (strcmp(keys_buf + j + MAX_PATH_LENGTH + 1, key) != 0)
+        {
+            printf("Invalid key\n\n");
+            closeFile(fd);
+            closeFile(fd_keys);
+            free(keys_buf);
+            return;
+        }
+        closeFile(fd_keys);
+        SM4_KeySchedule(key, rk);
+        SM4_ECB_Decrypt(buf.content, buf.size, &buf.size, rk);
+    }
+    closeFile(fd);
     if (buf.size > 0 && buf.content[buf.size - 1] == '\0')
         buf.size--;
     buf.line_offsets = malloc(sizeof(uint32_t) * 10000);
@@ -271,22 +342,26 @@ void editor_main(const char *filename)
     int size1 = buf.size;
     buf.pos = 0;
     bool first_open = True;
-    bool press_up = False;
-    bool press_down = False;
     while (1)
     {
-        intr_disable();
+        console_acquire();
         clean_screen();
         set_cursor(0);
+        console_release();
         display_content(&buf);
         if (first_open)
         {
+            console_acquire();
             set_cursor(0);
+            console_release();
             first_open = False;
         }
         else
+        {
+            console_acquire();
             set_cursor(buf.cursor_y * 80 + buf.cursor_x);
-        intr_enable();
+            console_release();
+        }
         char c = getchar();
         if (!buf.edit_mode)
         {
@@ -295,6 +370,11 @@ void editor_main(const char *filename)
                 buf.edit_mode = True;
             else if (c == 's')
             {
+                if (flag & INODE_ENCRYPTED)
+                {
+                    SM4_KeySchedule(key, rk);
+                    SM4_ECB_Encrypt(buf.content, buf.size, buf.size + 100, &buf.size, rk);
+                }
                 fd = openFile(filename, O_RDWR);
                 if (fd != -1)
                 {
@@ -307,15 +387,21 @@ void editor_main(const char *filename)
                     }
                     closeFile(fd);
                 }
+                console_acquire();
+                clean_screen();
+                set_cursor(0);
+                console_release();
+                free(buf.line_offsets);
+                free(buf.content);
+                return;
             }
             else if (c == 'q')
             {
-                intr_disable();
+                console_acquire();
                 clean_screen();
                 set_cursor(0);
-                intr_enable();
+                console_release();
                 free(buf.line_offsets);
-                free(buf.filename);
                 free(buf.content);
                 return;
             }
@@ -380,9 +466,7 @@ void editor_main(const char *filename)
                         if (buf.cursor_x > line_length)
                             buf.cursor_x = line_length;
                         update_pos(&buf);
-                        intr_disable();
                         display_content(&buf);
-                        intr_enable();
                     }
                 }
             }

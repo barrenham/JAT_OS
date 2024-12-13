@@ -15,13 +15,14 @@
 #include "../include/syscall.h"
 #include "../include/process.h"
 #include "../include/history.h"
-
+#include "../include/exec.h"
 #include "../include/editor.h"
 #include "../include/print.h"
+#include "../include/log.h"
+#include "../include/crypto.h"
 
 #define cmd_len 128
 #define MAX_ARG_NR 16
-#define MAX_PATH_LENGTH cmd_len
 #define MAX_CMD_LENGTH cmd_len
 
 extern struct file file_table[MAX_FILE_OPEN];
@@ -72,6 +73,8 @@ static char cmd_line_touch_bat[cmd_len] = {0};
 static char cmd_line_edit_bat[cmd_len] = {0};
 static char cmd_line_cp_bat[cmd_len] = {0};
 static char cmd_line_rmdir_bat[cmd_len] = {0};
+static char cmd_line_enc_bat[cmd_len] = {0};
+static char cmd_line_dec_bat[cmd_len] = {0};
 static struct history cmd_history;
 
 static bool isChar(c)
@@ -432,17 +435,17 @@ static void modify_cwd_cache(const char *filepath)
     ;
 }
 
-static void ls(void)
+static void ls(void* args)
 {
     sys_dir_list(cwd_cache);
 }
 
-static void lsi(void)
+static void lsi(void* args)
 {
     sys_dir_list_info(cwd_cache);
 }
 
-static void ps(void)
+static void ps(void* args)
 {
     struct list_elem *elem = thread_all_list.head.next;
     while (elem->next != NULL)
@@ -505,7 +508,7 @@ static void process_program()
     strcpy(argv[0], buf);
     if (get_file_type(argv[0]) != FT_REGULAR)
     {
-        printf("%s No such file or directory\n", argv[0]);
+        printk("%s No such file or directory\n", argv[0]);
     }
     else
     {
@@ -669,8 +672,6 @@ static void process_cp_command(void *_cmd_line)
         int fd = openFile(dst_path, O_CREAT);
         closeFile(fd);
     }
-    // int result = copyFile(dst_path, src_path);
-    // printf("result: %d\n", result);
     int fd_dst = openFile(dst_path, O_RDWR);
     int fd_src = openFile(src_path, O_RDWR);
     filesize size_src = getfilesize(fd_src);
@@ -683,13 +684,14 @@ static void process_cp_command(void *_cmd_line)
         closeFile(fd_dst);
         fd_dst = openFile(dst_path, O_RDWR);
     }
-    char buf[size_src];
+    char* buf=malloc(size_src+100);
     seekp(fd_src, 0, SEEK_SET);
     if (read(fd_src, buf, size_src) != size_src)
     {
         printf("Failed to read file: %s\n", src_path);
         closeFile(fd_dst);
         closeFile(fd_src);
+        free(buf);
         return;
     }
     seekp(fd_dst, 0, SEEK_SET);
@@ -698,14 +700,203 @@ static void process_cp_command(void *_cmd_line)
         printf("Failed to write file: %s\n", dst_path);
         closeFile(fd_dst);
         closeFile(fd_src);
+        free(buf);
         return;
     }
     closeFile(fd_dst);
     closeFile(fd_src);
     printf("File copied successfully from %s to %s\n", src_path, dst_path);
+    free(buf);
 }
 
-void my_shell(void)
+static void process_enc_command(void *_cmd_line)
+{
+    char *cmd_line = _cmd_line;
+    int i = 3;
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    if (cmd_line[i] == '\0')
+    {
+        printf("Usage: enc <source_file_path> <key>\n\n");
+        return;
+    }
+    char src_path[MAX_PATH_LENGTH] = {0};
+    int idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        src_path[idx++] = cmd_line[i++];
+    src_path[idx] = '\0';
+    int file_path_len = strlen(src_path);
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    uint8_t key[16] = {0};
+    idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0')
+        key[idx++] = cmd_line[i++];
+    key[idx] = '\0';
+    int key_len = strlen(key);
+    if (src_path[0] == '\0' || key[0] == '\0')
+    {
+        printf("Usage: enc <source_file_path> <key>\n\n");
+        return;
+    }
+    uint32_t rk[32];
+    SM4_KeySchedule(key, rk);
+    int fd = openFile(src_path, O_RDWR);
+    int flags = get_file_attr(fd);
+    if (flags & INODE_ENCRYPTED)
+    {
+        printf("File already encrypted: %s\n", src_path);
+        closeFile(fd);
+        return;
+    }
+    filesize size = getfilesize(fd);
+    char* buf = malloc(size + 100);
+    seekp(fd, 0, SEEK_SET);
+    if (read(fd, buf, size) != size)
+    {
+        printf("Failed to read file: %s\n", src_path);
+        closeFile(fd);
+        free(buf);
+        return;
+    }
+    SM4_ECB_Encrypt(buf, size, size + 100, &size, rk);
+    seekp(fd, 0, SEEK_SET);
+    if (write(fd, buf, size) != size)
+    {
+        printf("Failed to write file: %s\n", src_path);
+        closeFile(fd);
+        free(buf);
+        return;
+    }
+    flags |= INODE_ENCRYPTED;
+    set_file_attr(fd, flags);
+    closeFile(fd);
+    int fd_keys = openFile("/keys", O_RDWR);
+    if (fd_keys < 0)
+    {
+        printf("Failed to open keys file\n");
+        free(buf);
+        return;
+    }
+    char line_buf[MAX_PATH_LENGTH + 1 + MAX_KEY_LEN];
+    bool found = False;
+    filesize pos = 0;
+    filesize keys_size = getfilesize(fd_keys);
+    while (pos < keys_size)
+    {
+        seekp(fd_keys, pos, SEEK_SET);
+        if (read(fd_keys, line_buf, MAX_PATH_LENGTH + 1 + MAX_KEY_LEN) != MAX_PATH_LENGTH + 1 + MAX_KEY_LEN)
+            break;
+        if (strcmp(line_buf, src_path) == 0)
+        {
+            found = True;
+            seekp(fd_keys, pos, SEEK_SET);
+            break;
+        }
+        pos += MAX_PATH_LENGTH + 1 + MAX_KEY_LEN;
+    }
+    char *key_buf = malloc(MAX_PATH_LENGTH + 1 + MAX_KEY_LEN);
+    memset(key_buf, 0, MAX_PATH_LENGTH + 1 + MAX_KEY_LEN);
+    for (int i = 0; i < file_path_len; i++)
+        key_buf[i] = src_path[i];
+    for (int i = MAX_PATH_LENGTH + 1, j = 0; i <= MAX_PATH_LENGTH + 1 + key_len && j < key_len; i++, j++)
+        key_buf[i] = key[j];
+    if (!found)
+        seekp(fd_keys, 0, SEEK_END);
+    write(fd_keys, key_buf, MAX_PATH_LENGTH + 1 + MAX_KEY_LEN);
+    free(key_buf);
+    closeFile(fd_keys);
+    printf("File encrypted successfully: %s\n", src_path);
+}
+
+static void process_dec_command(void *_cmd_line)
+{
+    char *cmd_line = _cmd_line;
+    int i = 3;
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    if (cmd_line[i] == '\0')
+    {
+        printf("Usage: dec <source_file_path> <key>\n\n");
+        return;
+    }
+    char src_path[MAX_PATH_LENGTH] = {0};
+    int idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        src_path[idx++] = cmd_line[i++];
+    src_path[idx] = '\0';
+    int path_len = strlen(src_path);
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    uint8_t key[16] = {0};
+    idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0')
+        key[idx++] = cmd_line[i++];
+    key[idx] = '\0';
+    int key_len = strlen(key);
+    if (src_path[0] == '\0' || key[0] == '\0')
+    {
+        printf("Usage: dec <source_file_path> <key>\n\n");
+        return;
+    }
+    uint32_t rk[32];
+    SM4_KeySchedule(key, rk);
+    int fd = openFile(src_path, O_RDWR);
+    int flags = get_file_attr(fd);
+    if (!(flags & INODE_ENCRYPTED))
+    {
+        printf("File not encrypted: %s\n", src_path);
+        closeFile(fd);
+        return;
+    }
+    int fd_keys = openFile("/keys", O_RDONLY);
+    int size = getfilesize(fd_keys);
+    char *keys_buf = malloc(size);
+    seekp(fd_keys, 0, SEEK_SET);
+    int j = 0;
+    read(fd_keys, keys_buf, size);
+    for (j = 0; j < size; j += MAX_PATH_LENGTH + 1 + MAX_KEY_LEN)
+    {
+        if (strcmp(keys_buf + j, src_path) == 0)
+            break;
+    }
+    if (strcmp(keys_buf + j + MAX_PATH_LENGTH + 1, key) != 0)
+    {
+        printf("Invalid key\n");
+        closeFile(fd);
+        closeFile(fd_keys);
+        free(keys_buf);
+        return;
+    }
+    closeFile(fd_keys);
+    filesize size_file = getfilesize(fd);
+    char *buf = malloc(size + 100);
+    seekp(fd, 0, SEEK_SET);
+    if (read(fd, buf, size_file) != size_file)
+    {
+        printf("Failed to read file: %s\n", src_path);
+        closeFile(fd);
+        free(buf);
+        return;
+    }
+    SM4_ECB_Decrypt(buf, size_file, &size_file, rk);
+    seekp(fd, 0, SEEK_SET);
+    if (write(fd, buf, size_file) != size_file)
+    {
+        printf("Failed to write file: %s\n", src_path);
+        closeFile(fd);
+        free(buf);
+        return;
+    }
+    seekp(fd, size_file, SEEK_SET);
+    remove_some_cotent(fd, 16);
+    flags &= ~INODE_ENCRYPTED;
+    set_file_attr(fd, flags);
+    closeFile(fd);
+    printf("File dncrypted successfully: %s\n", src_path);
+}
+
+void my_shell(void *args)
 {
     history_init(&cmd_history);
     cwd_cache[0] = '/';
@@ -715,6 +906,7 @@ void my_shell(void)
         print_prompt();
         memset(cmd_line, 0, cmd_len);
         readline(cmd_line, cmd_len);
+        log_printk(DEVICE, "input %s \n", cmd_line);
         if (cmd_line[0] == 0)
         {
             continue;
@@ -793,11 +985,6 @@ void my_shell(void)
             thread_start("rmdir", SECOND_PRIO, process_rmdir_command, (cmd_line_rmdir_bat));
             thread_wait();
         }
-        if (cmd_line[0] == 'e' && cmd_line[1] == 'x' && cmd_line[2] == 'e' && cmd_line[3] == 'c')
-        {
-            strcpy(cmd_line_exec_bat, cmd_line);
-            process_execute(((uint32_t)process_program), "loader");
-        }
         if (cmd_line[0] == 'r' && cmd_line[1] == 'm')
         {
             strcpy(cmd_line_rm_bat, cmd_line);
@@ -830,6 +1017,18 @@ void my_shell(void)
         {
             strcpy(cmd_line_cp_bat, cmd_line);
             thread_start("cp", SECOND_PRIO, process_cp_command, (cmd_line_cp_bat));
+            thread_wait();
+        }
+        if (cmd_line[0] == 'e' && cmd_line[1] == 'n' && cmd_line[2] == 'c')
+        {
+            strcpy(cmd_line_enc_bat, cmd_line);
+            thread_start("enc", SECOND_PRIO, process_enc_command, (cmd_line_enc_bat));
+            thread_wait();
+        }
+        if (cmd_line[0] == 'd' && cmd_line[1] == 'e' && cmd_line[2] == 'c')
+        {
+            strcpy(cmd_line_dec_bat, cmd_line);
+            thread_start("dec", SECOND_PRIO, process_dec_command, (cmd_line_dec_bat));
             thread_wait();
         }
         history_push(&cmd_history, cmd_line);

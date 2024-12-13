@@ -25,6 +25,10 @@ extern struct file file_table[MAX_FILE_OPEN];
 
 
 uint32_t fd_local2global(uint32_t local_fd){
+    if(local_fd<0||local_fd>=MAX_FILES_OPEN_PER_PROC){
+        log_printk(SYSCALL, "local2global: local_fd < 0 or > 8");
+        return FAILED_FD;
+    }
     struct task_struct* cur=running_thread();
     int32_t global_fd=cur->fd_table[local_fd];
     //ASSERT(global_fd>=0&&global_fd<MAX_FILE_OPEN);
@@ -352,6 +356,7 @@ int32_t sys_open(const char* pathname,uint8_t flags){
         default:
         {
             fd=file_open(inode_no,flags);
+            dir_close(searched_record.parent_dir);
             break;
         }
     }
@@ -424,9 +429,15 @@ int32_t sys_opendir(const char* pathname,uint8_t flags){
 }
 
 int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
-    uint32_t _fd=fd_local2global(fd);
+    
     int32_t result=-1;
+    if(fd==stdout_no){
+        result=sys_write(fd,buf,0,bufsize);
+        return result;
+    }
+    uint32_t _fd=fd_local2global(fd);
     if(!is_pipe(fd)){
+        log_printk(FILE,"trying to write to file\n ");
         result=sys_write(fd,buf,file_table[_fd].fd_pos,bufsize);
         if(result!=-1){
             file_table[_fd].fd_pos+=bufsize;
@@ -439,12 +450,11 @@ int32_t user_file_write(int32_t fd,const void* buf,uint32_t bufsize){
 
 int32_t sys_write(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
     if(fd<0||fd==stdin_no){
-        printk("sys_write: fd error\n");
         return -1;
     }
     if(fd==stdout_no){
-        char tmp_buf[1024]={0};
-        ASSERT(bufsize<1024);
+        char tmp_buf[256]={0};
+        ASSERT(bufsize<256);
         memcpy(tmp_buf,buf,bufsize);
         console_put_string(tmp_buf);
         return -1;
@@ -474,6 +484,9 @@ int32_t sys_read(int32_t fd,const void* buf,uint32_t offset,uint32_t bufsize){
 }
 
 int32_t sys_seekp(int32_t fd,int32_t offset,enum whence wh_type){
+    if(fd<=2){
+        return -1;
+    }
     uint32_t _fd=fd_local2global(fd);
     switch(wh_type){
         case SEEK_SET:
@@ -510,10 +523,13 @@ int32_t sys_seekp(int32_t fd,int32_t offset,enum whence wh_type){
 
 int32_t sys_remove_some_content(int32_t fd,int32_t offset,int32_t size){
     if(fd<3){
-        printk("sys_remove_some_content: fd error\n");
+        console_put_string("sys_remove_some_content: fd error\n");
         return -1;
     }
     uint32_t _fd=fd_local2global(fd);
+    if(_fd<0){
+        return -1;
+    }
     return file_remove_some_content(&file_table[_fd],offset,size);
 }
 
@@ -564,7 +580,8 @@ int32_t sys_remove(const char* pathname){
     struct inode* parent_inode=searched_record.parent_dir->inode;
 
     uint32_t secondary_lba=0;
-    uint32_t all_blocks[140]={0};
+    uint32_t* all_blocks=malloc(140*sizeof(uint32_t));
+    memset(all_blocks,0,140*sizeof(uint32_t));
     uint8_t* io_buf=(uint8_t*)sys_malloc(BLOCK_SIZE);
     for(int i=0;i<13;i++){
         all_blocks[i]=parent_inode->i_sectors[i];
@@ -593,6 +610,7 @@ int32_t sys_remove(const char* pathname){
     file_remove_some_content(&File,0,File.fd_inode->i_size);
     inode_delete(cur_part,inode_no,io_buf);
     list_remove(&File.fd_inode->inode_tag);
+    sys_free(all_blocks);
     sys_free(io_buf);
     return 0;
 }
@@ -629,7 +647,7 @@ int32_t sys_dir_list(const char*pathname){
         ide_read(cur_part->my_disk,all_blocks[i],io_buf,1);
         struct dir_entry* dirE=(struct dir_entry*)io_buf;
         int cnt=0;
-        printf("\n",NULL);
+        putchar('\n');
         while((cnt<(BLOCK_SIZE/(sizeof(struct dir_entry))))){
             if(dirE->filename[0]!='\0'){
                 dirE->filename[MAX_FILE_NAME_LEN-1]='\0';
@@ -679,15 +697,19 @@ int32_t sys_dir_list_info(const char*pathname){
         ide_read(cur_part->my_disk,all_blocks[i],io_buf,1);
         struct dir_entry* dirE=(struct dir_entry*)io_buf;
         int cnt=0;
-        printf("\n",NULL);
+        console_put_char('\n');
         while((cnt<(BLOCK_SIZE/(sizeof(struct dir_entry))))){
             if(dirE->filename[0]!='\0'){
                 dirE->filename[MAX_FILE_NAME_LEN-1]='\0';
                 char* filepath=sys_malloc(MAX_PATH_LEN);
                 strcpy(filepath,pathname);
+                if(filepath[strlen(filepath)-1]!='/'){
+                    strcat(filepath,"/");
+                }
                 strcat(filepath,dirE->filename);
                 file_descriptor fd=sys_open(filepath,O_RDONLY);
-                printf("[%s size:%d B type: %s]\n",dirE->filename,sys_get_file_size(fd),dirE->f_type==FT_DIRECTORY?"DIRECTORY":(dirE->f_type==FT_REGULAR)?"REGULAR  ":"UNKNOWN  ");
+                printf("[%s size:%d B type: %s,inode:%d]\n",dirE->filename,sys_get_file_size(fd),dirE->f_type==FT_DIRECTORY?"DIRECTORY":(dirE->f_type==FT_REGULAR)?"REGULAR  ":"UNKNOWN  ",\
+                dirE->i_no);
                 sys_close(fd);
                 sys_free(filepath);
             }
@@ -779,10 +801,12 @@ delete_end:
 
 
 int32_t user_file_open(const char* pathname,uint8_t flags){
+    log_printk(FILE,"trying to open file %s\n",pathname);
     return sys_open(pathname,flags);
 }
 
 int32_t user_mkdir(const char* pathname){
+    log_printk(FILE,"trying to mkdir:%s\n",pathname);
     return sys_opendir(pathname,O_CREAT);
 }
 
@@ -821,17 +845,18 @@ int32_t user_file_read(int32_t fd,const char* buf,uint32_t bufsize){
 }
 
 int32_t user_file_seekp(int32_t fd,int32_t offset,enum whence wh_type){
-    if(fd<0){
+    if(fd<=2){
         return GENERAL_FAULT;
     }
     int32_t _fd=fd_local2global(fd);
-    ASSERT(!is_pipe(fd));
     if(_fd==FAILED_FD){
-        return CANNOT_FIND_FD_IN_PROCESS_STACK;
+        return GENERAL_FAULT;
     }
+    ASSERT(!is_pipe(fd));
     if(file_table[_fd].fd_inode==NULL){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
+    log_printk(SYSCALL,"seek file to offset %d\n",offset);
     int32_t result=sys_seekp(fd,offset,wh_type);
     return result;
 }
@@ -845,6 +870,7 @@ int32_t user_file_remove_some_content(int32_t fd,int32_t size){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
     int32_t _size=((file_table[_fd].fd_pos+size)>=file_table[_fd].fd_inode->i_size)?(file_table[_fd].fd_inode->i_size-file_table[_fd].fd_pos):(size);
+    log_printk(SYSCALL,"file content removing\n");
     int32_t result=sys_remove_some_content(fd,file_table[_fd].fd_pos,_size);
     if(result==GENERAL_FAULT){
         return CANNOT_REMOVE_SOME_COTENT_FROM_FILE;
@@ -854,6 +880,7 @@ int32_t user_file_remove_some_content(int32_t fd,int32_t size){
 }
 
 int32_t user_delete(const char* pathname){
+    log_printk(SYSCALL,"trying to delete %s\n",pathname);
     int32_t result=sys_remove(pathname);
     if(result==-1){
         result=sys_delete_dir(pathname);
@@ -872,6 +899,10 @@ int32_t user_file_close(int32_t fd){
     if(file_table[_fd].fd_inode==NULL){
         return CANNOT_FIND_INODE_IN_GLOBAL_FILE_TABLE;
     }
+    log_printk(SYSCALL,"close file descriptor %d\n",fd);
+    if(file_table[_fd].fd_inode->i_open_cnts==1){
+        log_printk(DEVICE,"sync file to disk %s\n",cur_part->my_disk->name);
+    }
     int32_t result=sys_close(fd);
     return result;
 }
@@ -888,6 +919,7 @@ filesize sys_get_file_size(file_descriptor fd){
     if(file_table[_fd].fd_inode->i_size >(uint32_t)70*1024){
         return GENERAL_FAULT;
     }
+    log_printk(SYSCALL,"getting file size\n");
     return file_table[_fd].fd_inode->i_size;
 }
 
@@ -904,5 +936,79 @@ enum file_types sys_get_file_attribute(const char* pathname){
         dir_close(searched_record.parent_dir);
         return -1;
     }
+    dir_close(searched_record.parent_dir);
+    log_printk(SYSCALL,"getting file type\n");
     return searched_record.file_type;
+}
+
+
+
+int32_t sys_open_log(const char* pathname,uint8_t flags){
+    if(pathname[strlen(pathname)-1]=='/'){
+        return -1;
+    }
+    ASSERT(flags<=7);
+    int32_t fd=-1;
+
+    struct path_search_record searched_record;
+    memset(&searched_record,0,sizeof(struct path_search_record));
+
+    uint32_t pathname_depth=path_depth_cnt((char*)pathname);
+
+    int inode_no=search_file(pathname,&searched_record);
+    bool found=inode_no!=-1?True:False;
+    if(searched_record.file_type==FT_DIRECTORY){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    uint32_t path_searched_depth=path_depth_cnt(searched_record.searched_path);
+
+    if(pathname_depth!=path_searched_depth){
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+
+    if(!found&&!(flags&O_CREAT)){
+
+        dir_close(searched_record.parent_dir);
+        return -1;
+    }
+    {
+        fd=log_file_open(inode_no,flags);
+        dir_close(searched_record.parent_dir);
+    }
+    return fd;
+}
+
+void sys_set_file_attr(file_descriptor fd, int flags)
+{
+    if (fd <= 2)
+        return;
+    file_descriptor _fd = fd_local2global(fd);
+    if (_fd == FAILED_FD)
+        return;
+    ASSERT(file_table[_fd].fd_inode != NULL);
+    file_table[_fd].fd_inode->flags = flags;
+    log_printk(SYSCALL, "set file attr: %x\n", flags);
+    return;
+}
+
+int sys_get_file_attr(file_descriptor fd)
+{
+    if (fd <= 2)
+    {
+        log_printk(SYSCALL, "get file attr failed, fd <= 2\n");
+        return GENERAL_FAULT;
+    }
+    file_descriptor _fd = fd_local2global(fd);
+    if (_fd == FAILED_FD)
+    {
+        log_printk(SYSCALL, "get file attr failed, local2global failed\n");
+        return GENERAL_FAULT;
+    }
+
+    ASSERT(file_table[_fd].fd_inode != NULL);
+    int flags = file_table[_fd].fd_inode->flags;
+    log_printk(SYSCALL, "get file attr: %x\n", flags);
+    return flags;
 }

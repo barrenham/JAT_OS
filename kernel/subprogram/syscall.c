@@ -11,6 +11,8 @@
 #include "../include/pipe.h"
 #include "../include/exec.h"
 
+typedef int16_t  pid_t;
+
 #define _syscall0(NUMBER) ({    \
     int retval;                 \
     asm volatile(               \
@@ -133,6 +135,7 @@ int32_t user_file_copy(const char* dst_path,const char* src_path){
     if(buf==NULL){
         closeFile(fds);
         closeFile(fdd);
+        free(buf);
         return GENERAL_FAULT;
     }
     int32_t read_cnt=0;
@@ -144,6 +147,7 @@ int32_t user_file_copy(const char* dst_path,const char* src_path){
     free(buf);
     return 0;
 }
+
 
 int32_t process_exit(void){
     return _syscall0(EXIT_PROCESS);

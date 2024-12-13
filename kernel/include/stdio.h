@@ -2,6 +2,8 @@
 #define __LIB__STDIO_H
 #include "stdint.h"
 
+#define MAX_PATH_LENGTH 128
+#define MAX_KEY_LEN 16
 
 typedef void* va_list;
 

@@ -74,6 +74,10 @@ lib/editor.o: editor/editor.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 lib/history.o: shell/history.c
 	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
+lib/log.o: log/log.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
+lib/sm4.o: crypto/sm4.c
+	gcc -m32 -c $^ -I include -o $@ -fno-stack-protector -nostdlib -nostdinc
 
 all:
 	gcc -I include -m32 -c -o main.o main.c  -fno-stack-protector -nostdlib -nostdinc
@@ -106,7 +110,8 @@ all:
 	gcc -m32 -c userprog/exec.c -I include -o lib/exec.o -fno-stack-protector -nostdlib -nostdinc
 	gcc -m32 -c editor/editor.c -I include -o lib/editor.o -fno-stack-protector -nostdlib -nostdinc
 	gcc -m32 -c shell/history.c -I include -o lib/history.o -fno-stack-protector -nostdlib -nostdinc
-
+	gcc -m32 -c log/log.c -I include -o lib/log.o -fno-stack-protector -nostdlib -nostdinc
+	gcc -m32 -c crypto/sm4.c -I include -o lib/sm4.o -fno-stack-protector -nostdlib -nostdinc
 install:
 	dd if=kernel.bin of=../hd60M.img bs=512 count=300 seek=9 conv=notrunc
 
