@@ -3,7 +3,7 @@
 #include "../include/debug.h"
 #include "../include/print.h"
 
-
+extern struct virtual_addr kernel_vaddr;
 
 void sema_init(struct semaphore* psema,uint8_t value){
     psema->value=value;

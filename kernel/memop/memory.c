@@ -24,13 +24,13 @@ struct arena{
 
 struct mem_block_desc k_block_descs[DESC_CNT];
 
-
 struct pool{
     struct lock   lock;
     struct bitmap pool_bitmap;
     uint32_t phy_addr_start;
     uint32_t pool_size;
 };
+
 
 uint32_t get_phy_addr_start(struct pool* p){
     return p->phy_addr_start;
@@ -39,6 +39,7 @@ uint32_t get_phy_addr_start(struct pool* p){
 uint32_t get_phy_bitmap_ptr(struct pool* p){
     return &(p->pool_bitmap);
 }
+
 
 struct pool kernel_pool,user_pool;
 struct virtual_addr kernel_vaddr;
@@ -249,17 +250,21 @@ void* malloc_page(enum pool_flags pf,uint32_t pg_cnt){
 }
 
 void* get_kernel_pages(uint32_t pg_cnt){
+    lock_acquire(&kernel_pool.lock);
     void* vaddr=malloc_page(PF_KERNEL,pg_cnt);
     if(vaddr!=NULL){
         memset(vaddr,0,pg_cnt*PG_SIZE);
     }
+    lock_release(&kernel_pool.lock);
     return vaddr;
 }
 
 void* get_user_pages(uint32_t pg_cnt){
     lock_acquire(&user_pool.lock);
     void* vaddr=malloc_page(PF_USER,pg_cnt);
-    memset(vaddr,0,pg_cnt*PG_SIZE);
+    if(vaddr!=NULL){
+        memset(vaddr,0,pg_cnt*PG_SIZE);
+    }
     lock_release(&user_pool.lock);
     return vaddr;
 }
@@ -441,6 +446,7 @@ void mfree_page(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt){
     ASSERT((pg_phy_addr%PG_SIZE==0)&&pg_phy_addr>=0x102000);
 
     if(pg_phy_addr>=user_pool.phy_addr_start){
+        lock_acquire(&user_pool.lock);
         vaddr-=PG_SIZE;
         while(page_cnt<pg_cnt){
             vaddr+=PG_SIZE;
@@ -451,7 +457,9 @@ void mfree_page(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt){
             page_cnt++;
         }
         vaddr_remove(pf,_vaddr,pg_cnt);
+        lock_release(&user_pool.lock);
     }else{
+        lock_acquire(&kernel_pool.lock);
         vaddr-=PG_SIZE;
         while(page_cnt<pg_cnt){
             vaddr+=PG_SIZE;
@@ -463,6 +471,7 @@ void mfree_page(enum pool_flags pf,void* _vaddr,uint32_t pg_cnt){
             page_cnt++;
         }
         vaddr_remove(pf,_vaddr,pg_cnt);
+        lock_release(&kernel_pool.lock);
     }
 }
 

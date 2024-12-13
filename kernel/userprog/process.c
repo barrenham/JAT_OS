@@ -23,6 +23,8 @@ extern struct list thread_all_list;
 extern struct list thread_ready_second_list;
 extern struct list thread_ready_third_list;
 extern struct file file_table[MAX_FILE_OPEN];
+extern struct pool kernel_pool,user_pool;
+extern struct virtual_addr kernel_vaddr;
 
 void
 fork_start_process(void* filename_,void* eip,void* esp){
@@ -85,14 +87,16 @@ void page_dir_activate(struct task_struct* p_thread){
     // put_int(p_thread->pgdir);
     if(p_thread->pgdir!=NULL){
         pagedir_phy_addr=addr_v2p((uint32_t)p_thread->pgdir);
-        // put_int(pagedir_phy_addr);
-        // for (int i = 0; i < 1024; i++)
-        //     put_int(*((uint32_t*)pagedir_phy_addr + i));
+        /*
+        for (int i = 0; i < 1024; i++)
+             put_int(*((uint32_t*)p_thread->pgdir + i));
+        */
+        //put_int(*(uint32_t*)0xF0F0F0F0F0);
     }
     // put_int(pagedir_phy_addr);
     
     // put_int(pagedir_phy_addr);
-    asm volatile("movl %0,%%cr3"
+    asm volatile("movl %0,%%cr3; jmp flush;flush:nop"
                 :
                 :"r"(pagedir_phy_addr)
                 :"memory");
@@ -113,7 +117,10 @@ void process_activate(struct task_struct* p_thread){
 }
 
 uint32_t* create_page_dir(void){
-    uint32_t* page_dir_vaddr=get_kernel_pages(1);
+    static uint32_t pg_ptr=0xE0000000;
+    uint32_t* page_dir_vaddr=get_a_page(PF_KERNEL,pg_ptr);
+    pg_ptr+=0x1000;
+    memset(page_dir_vaddr,0,PG_SIZE);
     if(page_dir_vaddr==NULL){
         console_put_string("create_page_dir: get_kernel_page failed!\n");
         return NULL;
@@ -125,9 +132,12 @@ uint32_t* create_page_dir(void){
     memcpy((uint32_t*)((uint32_t)page_dir_vaddr+0x300*4),\
           (uint32_t*)(0xfffff000+0x300*4),\
           1024);
-    // put_int((uint32_t)page_dir_vaddr);
     uint32_t new_page_dir_phy_addr=addr_v2p((uint32_t)page_dir_vaddr);
     page_dir_vaddr[1023]=new_page_dir_phy_addr|PG_US_U|PG_RW_W|PG_P_1;
+    asm volatile("invlpg %0"
+    :
+    :"m"(page_dir_vaddr)
+    :"memory");
     #ifndef TEST_PRINT
     for(int i=0;i<1024;i++){
         put_int(page_dir_vaddr[i]);

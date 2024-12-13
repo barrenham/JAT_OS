@@ -41,6 +41,7 @@ int main(void) {
 	putchar('\n');
 	uint32_t ptr=0;
 	uint32_t read_cnt=0;
+	
 	while((read_cnt=sys_read(fd0,buf,ptr,0x200))!=-1){
 		ptr+=read_cnt;
 		for(int i=0;i<(read_cnt);i++){
@@ -64,7 +65,8 @@ int main(void) {
 		mfree_page(PF_KERNEL, prog_buf, 25);
 		closeFile(fd);
 	}
-	// thread_start("thread_cleaner",FIRST_PRIO,thread_cleaner,NULL);
+	
+	thread_start("thread_cleaner",FIRST_PRIO,thread_cleaner,NULL);
 	//process_execute(u_prog_a, "u_prog_a");
 	//process_execute(u_prog_c, "test_write_file");
 	// process_execute(u_prog_b, "u_lazy"); 
@@ -83,7 +85,7 @@ int main(void) {
 	char* lptr=sys_malloc(102400);
 	sys_free(lptr);
 	*/
-	// logEnable();
+	logEnable();
 	thread_start("shell",FIRST_PRIO,my_shell,NULL);
 	//process_execute(my_shell,"shell");
 	while(1);
