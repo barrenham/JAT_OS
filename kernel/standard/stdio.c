@@ -36,11 +36,39 @@ uint32_t vsprintf(char* str,const char* format,va_list ap){
             continue;
         }
         index_char=*(++index_ptr);
+        int padding = 0;
+        if (index_char == '0')
+        {
+            index_char = *(++index_ptr);
+            while (index_char >= '0' && index_char <= '9')
+            {
+                padding = padding * 10 + (index_char - '0');
+                index_char = *(++index_ptr);
+            }
+        }
         switch(index_char){
             case 'x':
                 arg_int=va_arg(ap,int);
-                itoa(arg_int,&buf_ptr,16);
-                index_char=*(++index_ptr);
+                // itoa(arg_int,&buf_ptr,16);
+                // index_char=*(++index_ptr);
+                // break;
+                if (padding > 0)
+                {
+                    char tmp[32] = {0};
+                    char *tmp_ptr = tmp;
+                    itoa(arg_int, &tmp_ptr, 16);
+                    int len = strlen(tmp);
+                    while (len < padding)
+                    {
+                        *(buf_ptr++) = '0';
+                        len++;
+                    }
+                    strcpy(buf_ptr, tmp);
+                    buf_ptr += strlen(tmp);
+                }
+                else
+                    itoa(arg_int, &buf_ptr, 16);
+                index_char = *(++index_ptr);
                 break;
             case 's':
                 arg_str=va_arg(ap,char*);

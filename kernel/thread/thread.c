@@ -283,13 +283,15 @@ void schedule(){
     }
     next->status=TASK_RUNNING;
     //ASSERT(next!=cur);
-    /*
-    put_string(cur->name);
-    put_string("->");
-    put_string(next->name);
-    */
+    
+    // put_string(cur->name);
+    // put_string("->");
+    // put_string(next->name);
+    
     process_activate(next);
+    asm volatile ("pusha");
     switch_to(cur,next);
+    asm volatile ("popa");
 }
 
 void thread_block(enum task_status stat){

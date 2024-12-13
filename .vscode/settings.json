@@ -65,6 +65,7 @@
         "pipe.h": "c",
         "userprog.h": "c",
         "history.h": "c",
-        "editor.h": "c"
+        "editor.h": "c",
+        "crypto.h": "c"
     }
 }

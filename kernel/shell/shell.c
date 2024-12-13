@@ -24,6 +24,7 @@
 #define cmd_len 128
 #define MAX_ARG_NR 16
 #define MAX_CMD_LENGTH cmd_len
+#define HASH_SIZE 32
 
 extern struct file file_table[MAX_FILE_OPEN];
 extern struct partition *cur_part;
@@ -75,14 +76,15 @@ static char cmd_line_cp_bat[cmd_len] = {0};
 static char cmd_line_rmdir_bat[cmd_len] = {0};
 static char cmd_line_enc_bat[cmd_len] = {0};
 static char cmd_line_dec_bat[cmd_len] = {0};
+static char cmd_line_sha_bat[cmd_len] = {0};
 static struct history cmd_history;
 
-static bool isChar(c)
+static bool isChar(char c)
 {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
-static bool isDigit(c)
+static bool isDigit(char c)
 {
     return (c >= '0' && c <= '9');
 }
@@ -482,6 +484,48 @@ static void ps(void* args)
     }
 }
 
+static int verify_program_hash(const char *filepath)
+{
+    int fd = openFile(filepath, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    filesize size = getfilesize(fd);
+    if (size <= HASH_SIZE)
+    {
+        closeFile(fd);
+        return -1;
+    }
+    char stored_hash[HASH_SIZE];
+    seekp(fd, size - HASH_SIZE, SEEK_SET);
+    if (read(fd, stored_hash, HASH_SIZE) != HASH_SIZE)
+    {
+        closeFile(fd);
+        return -1;
+    }
+    closeFile(fd);
+    char current_hash[HASH_SIZE];
+    SHA256(filepath, current_hash);
+    return memcmp(stored_hash, current_hash, HASH_SIZE) == 0;
+}
+
+static int append_hash_to_program(const char *filepath)
+{
+    char current_hash[HASH_SIZE];
+    SHA256(filepath, current_hash);
+    int fd = openFile(filepath, O_RDWR);
+    seekp(fd, 0, SEEK_END);
+    if (write(fd, current_hash, HASH_SIZE) != HASH_SIZE)
+    {
+        closeFile(fd);
+        return -1;
+    }
+    int flag = get_file_attr(fd);
+    flag = flag | INODE_HASHED;
+    set_file_attr(fd, flag);
+    closeFile(fd);
+    return 0;
+}
+
 static void process_program()
 {
     // argv需要特殊处理
@@ -512,6 +556,25 @@ static void process_program()
     }
     else
     {
+        int fd = openFile(argv[0], O_RDONLY);
+        int flag = get_file_attr(fd);
+        closeFile(fd);
+        if (flag & INODE_HASHED)
+        {
+            if (!verify_program_hash(argv[0]))
+            {
+                printf("%s: hash verification failed\n", argv[0]);
+                process_exit();
+            }
+        }
+        else
+        {
+            if (append_hash_to_program(argv[0]) < 0)
+            {
+                printk("%s: failed to append hash\n", argv[0]);
+                process_exit();
+            }
+        }
         execv(argv[0], argv);
     }
     process_exit();
@@ -896,6 +959,40 @@ static void process_dec_command(void *_cmd_line)
     printf("File dncrypted successfully: %s\n", src_path);
 }
 
+static void process_sha_command(void *_cmd_line)
+{
+    char *cmd_line = _cmd_line;
+    int i = 4;
+    while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+        i++;
+    if (cmd_line[i] == '\0')
+    {
+        printf("Usage: sha <source_file_path>\n\n");
+        return;
+    }
+    char src_path[MAX_PATH_LENGTH] = {0};
+    int idx = 0;
+    while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+        src_path[idx++] = cmd_line[i++];
+    src_path[idx] = '\0';
+    if (src_path[0] == '\0')
+    {
+        printf("Usage: sha <source_file_path>\n\n");
+        return;
+    }
+    int type = get_file_type(src_path);
+    if (type != FT_REGULAR)
+    {
+        printf("Invalid file: %s\n", src_path);
+        return;
+    }
+    char sha[32] = {0};
+    printf("src_path: %s, addr: %x\n", src_path, src_path);
+    SHA256(src_path, sha);
+    printf("src_path: %s, addr: %x\n", src_path, src_path);
+    printf("SHA256: %s\n", sha);
+}
+
 void my_shell(void *args)
 {
     history_init(&cmd_history);
@@ -993,8 +1090,10 @@ void my_shell(void *args)
         }
         if (cmd_line[0] == 'e' && cmd_line[1] == 'x' && cmd_line[2] == 'e' && cmd_line[3] == 'c')
         {
+            // logDisable();
             strcpy(cmd_line_exec_bat, cmd_line);
-            process_execute(((uint32_t)process_program), "loader");
+            process_execute((process_program), "loader");
+            // thread_wait();
         }
         if (cmd_line[0] == 't' && cmd_line[1] == 'o' && cmd_line[2] == 'u' && cmd_line[3] == 'c' && cmd_line[4] == 'h')
         {
@@ -1030,6 +1129,37 @@ void my_shell(void *args)
             strcpy(cmd_line_dec_bat, cmd_line);
             thread_start("dec", SECOND_PRIO, process_dec_command, (cmd_line_dec_bat));
             thread_wait();
+        }
+        if (cmd_line[0] == 's' && cmd_line[1] == 'h' && cmd_line[2] == 'a')
+        {
+            strcpy(cmd_line_sha_bat, cmd_line);
+            thread_start("sha", SECOND_PRIO, process_sha_command, (cmd_line_sha_bat));
+            thread_wait();
+        }
+        if (cmd_line[0] == 'a' && cmd_line[1] == 't' && cmd_line[2] == 't' && cmd_line[3] == 'r')
+        {
+            int i = 5;
+            while (cmd_line[i] == ' ' && i < MAX_CMD_LENGTH)
+                i++;
+            if (cmd_line[i] == '\0')
+            {
+                printf("Usage: attr <source_file_path>\n\n");
+                return;
+            }
+            char src_path[MAX_PATH_LENGTH] = {0};
+            int idx = 0;
+            while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && idx < MAX_PATH_LENGTH - 1)
+                src_path[idx++] = cmd_line[i++];
+            src_path[idx] = '\0';
+            if (src_path[0] == '\0')
+            {
+                printf("Usage: attr <source_file_path>\n\n");
+                return;
+            }
+            int fd = openFile(src_path, O_RDONLY);
+            int flag = get_file_attr(fd);
+            closeFile(fd);
+            printf("flag %d\n", flag);
         }
         history_push(&cmd_history, cmd_line);
     }

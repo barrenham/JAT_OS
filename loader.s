@@ -164,7 +164,7 @@ p_mode_start:
 
     mov eax,    KERNEL_START_SECTOR
     mov ebx,    KERNEL_BIN_BASE_ADDR
-    mov ecx,    250
+    mov ecx,    255
     call        rd_disk_mem
 
     call        setup_page

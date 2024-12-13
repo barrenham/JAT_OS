@@ -8,6 +8,7 @@
 
 #define INODE_WRITE_DENY 0x1
 #define INODE_ENCRYPTED 0x2
+#define INODE_HASHED 0x4
 
 struct inode{
     uint32_t i_no;
