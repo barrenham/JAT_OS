@@ -144,7 +144,7 @@ void bitmap_sync(struct partition* part, uint32_t bit_idx, enum bitmap_type btmp
 
 int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
 {
-    void* io_buf=sys_malloc(1024);
+    void* io_buf=get_kernel_pages(1);
     if(io_buf==NULL){
         printk("in file_creat: sys_malloc for io_buf failed\n");
         return -1;
@@ -153,11 +153,11 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
 
     int32_t inode_no=inode_bitmap_alloc(cur_part);
     if(inode_no==-1){
-        sys_free(io_buf);
+        mfree_page(PF_KERNEL, io_buf, 1);
         printk("in file_create: allocate inode failed\n");
         return -1;
     }
-    struct inode* new_file_inode=(struct inode*)sys_malloc(sizeof(struct inode));
+    struct inode* new_file_inode=(struct inode*)get_kernel_pages(1);
     if(new_file_inode==NULL){
         printk("file_create: sys_malloc for inode failed\n");
         rollback_step=1;
@@ -197,7 +197,7 @@ int32_t file_create(struct dir* parent_dir,char* filename,uint8_t flag)
     new_file_inode->i_open_cnts=1;
 
 
-    sys_free(io_buf);
+    mfree_page(PF_KERNEL, io_buf, 1);
 
     return pcb_fd_install(fd_idx);
 
@@ -210,7 +210,7 @@ rollback:
         }
         case 2:
         {
-            sys_free(new_file_inode);
+            mfree_page(PF_KERNEL, new_file_inode, 1);
         }
         case 1:
         {
@@ -218,7 +218,7 @@ rollback:
             break;
         }
     }
-    sys_free(io_buf);
+    mfree_page(PF_KERNEL, io_buf, 1);
     return -1;
 }
 
@@ -303,13 +303,13 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
         printk("exceed max file_size 71680 bytes , write file failed\n");
         return -1;
     }
-    uint8_t* io_buf=sys_malloc(2*BLOCK_SIZE);
+    uint8_t* io_buf=get_kernel_pages(1);
     if(io_buf==NULL){
         printk("file_write: sys_malloc for io_buf failed\n");
-        sys_free(io_buf);
+        // sys_free(io_buf);
         return -1;
     }
-    uint32_t* all_blocks=sys_malloc(140*sizeof(uint32_t));
+    uint32_t* all_blocks=get_kernel_pages(1);
     memset(all_blocks,0,140*sizeof(uint32_t));
     for(int i=0;i<13;i++){
         all_blocks[i]=File->fd_inode->i_sectors[i];
@@ -334,8 +334,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 int32_t block_idx=block_bitmap_alloc(cur_part);
                 if(block_idx==-1){
                     printk("not enough block for data!\n");
-                    sys_free(io_buf);
-                    sys_free(all_blocks);
+                    mfree_page(PF_KERNEL, io_buf, 1);
+                    mfree_page(PF_KERNEL, all_blocks, 1);
                     return -1;
                 }
                 all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
@@ -353,8 +353,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                     int32_t secondary_block_idx=block_bitmap_alloc(cur_part);
                     if(block_idx==-1||secondary_block_idx==-1){
                         printk("not enough block for data!\n");
-                        sys_free(io_buf);
-                        sys_free(all_blocks);
+                        mfree_page(PF_KERNEL, io_buf, 1);
+                        mfree_page(PF_KERNEL, all_blocks, 1);
                         return -1;
                     }
                     secondary_lba=secondary_block_idx;
@@ -375,8 +375,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                     int32_t block_idx=block_bitmap_alloc(cur_part);
                     if(block_idx==-1){
                         printk("not enough block for data!\n");
-                        sys_free(io_buf);
-                        sys_free(all_blocks);
+                        mfree_page(PF_KERNEL, io_buf, 1);
+                        mfree_page(PF_KERNEL, all_blocks, 1);
                         return -1;
                     }
                     all_blocks[blocks_passed]=block_idx;
@@ -403,8 +403,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             int32_t block_idx=block_bitmap_alloc(cur_part);
             if(block_idx==-1){
                 printk("not enough block for data!\n");
-                sys_free(io_buf);
-                sys_free(all_blocks);
+                mfree_page(PF_KERNEL, io_buf, 1);
+                mfree_page(PF_KERNEL, all_blocks, 1);
                 return -1;
             }
             all_blocks[blocks_passed]=block_idx;
@@ -420,8 +420,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             int32_t secondary_block_idx=block_bitmap_alloc(cur_part);
             if(block_idx==-1||secondary_block_idx==-1){
                 printk("not enough block for data!\n");
-                sys_free(io_buf);
-                sys_free(all_blocks);
+                mfree_page(PF_KERNEL, io_buf, 1);
+                mfree_page(PF_KERNEL, all_blocks, 1);
                 return -1;
             }
             secondary_lba=secondary_block_idx;
@@ -440,8 +440,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
             int32_t block_idx=block_bitmap_alloc(cur_part);
             if(block_idx==-1){
                 printk("not enough block for data!\n");
-                sys_free(io_buf);
-                sys_free(all_blocks);
+                mfree_page(PF_KERNEL, io_buf, 1);
+                mfree_page(PF_KERNEL, all_blocks, 1);
                 return -1;
             }
             all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
@@ -467,8 +467,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 int32_t block_idx=block_bitmap_alloc(cur_part);
                 if(block_idx==-1){
                     printk("not enough block for data!\n");
-                    sys_free(io_buf);
-                    sys_free(all_blocks);
+                    mfree_page(PF_KERNEL, io_buf, 1);
+                    mfree_page(PF_KERNEL, all_blocks, 1);
                     return -1;
                 }
                 all_blocks[blocks_passed]=block_idx;
@@ -484,8 +484,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 int32_t secondary_block_idx=block_bitmap_alloc(cur_part);
                 if(block_idx==-1||secondary_block_idx==-1){
                     printk("not enough block for data!\n");
-                    sys_free(io_buf);
-                    sys_free(all_blocks);
+                    mfree_page(PF_KERNEL, io_buf, 1);
+                    mfree_page(PF_KERNEL, all_blocks, 1);
                     return -1;
                 }
                 secondary_lba=block_idx;
@@ -504,8 +504,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
                 int32_t block_idx=block_bitmap_alloc(cur_part);
                 if(block_idx==-1){
                     printk("not enough block for data!\n");
-                    sys_free(io_buf);
-                    sys_free(all_blocks);
+                    mfree_page(PF_KERNEL, io_buf, 1);
+                    mfree_page(PF_KERNEL, all_blocks, 1);
                     return -1;
                 }
                 all_blocks[blocks_passed]=File->fd_inode->i_sectors[blocks_passed]=block_idx;
@@ -535,8 +535,8 @@ int32_t file_write(struct file* File,const void* buf,uint32_t offset,uint32_t bu
     */
     inode_sync(cur_part,File->fd_inode,io_buf);
 
-    sys_free(io_buf);
-    sys_free(all_blocks);
+    mfree_page(PF_KERNEL, io_buf, 1);
+    mfree_page(PF_KERNEL, all_blocks, 1);
     return (bytes_passed - offset);
 }
 

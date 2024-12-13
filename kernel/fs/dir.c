@@ -25,7 +25,7 @@ void open_root_dir(struct partition* part){
 }
 
 struct dir* dir_open(struct partition* part,uint32_t inode_no){
-    struct dir* pdir=(struct dir*)sys_malloc(sizeof(struct dir));
+    struct dir* pdir=(struct dir*)get_kernel_pages(1);
     pdir->inode=inode_open(part,inode_no);
     pdir->dir_pos=0;
     return pdir;
@@ -34,10 +34,10 @@ struct dir* dir_open(struct partition* part,uint32_t inode_no){
 
 bool search_dir_entry(struct partition* part,struct dir* pdir,const char* name,struct dir_entry* dir_e){
     uint32_t block_cnt=140;
-    uint32_t* all_blocks=(uint32_t*)sys_malloc(48+512);
+    uint32_t* all_blocks=(uint32_t*)get_kernel_pages(1);
+    memset(all_blocks, 0, PG_SIZE);
     if(all_blocks==NULL){
         printk("search_dir_entry: sys_malloc for all_blocks failed");
-        sys_free(all_blocks);
         return False;
     }
     uint32_t block_idx=0;
@@ -51,7 +51,7 @@ bool search_dir_entry(struct partition* part,struct dir* pdir,const char* name,s
         ide_read(part->my_disk,pdir->inode->i_sectors[12],all_blocks+12,1);
     }
 
-    uint8_t* buf=(uint8_t*)sys_malloc(SECTOR_SIZE);
+    uint8_t* buf=(uint8_t*)get_kernel_pages(1);
     struct dir_entry* p_de=(struct dir_entry*)buf;
     uint32_t dir_entry_size=part->sb->dir_entry_size;
     uint32_t dir_entry_cnt=SECTOR_SIZE/dir_entry_size;
@@ -66,8 +66,8 @@ bool search_dir_entry(struct partition* part,struct dir* pdir,const char* name,s
         while(dir_entry_idx<dir_entry_cnt){
             if(!strcmp(p_de->filename,name)){
                 memcpy(dir_e,p_de,dir_entry_size);
-                sys_free(buf);
-                sys_free(all_blocks);
+                mfree_page(PF_KERNEL, all_blocks, 1);
+                mfree_page(PF_KERNEL, all_blocks, 1);
                 return True;
             }
             dir_entry_idx++;
@@ -75,10 +75,10 @@ bool search_dir_entry(struct partition* part,struct dir* pdir,const char* name,s
         }
         block_idx++;
         p_de=(struct dir_entry*)buf;
-        memset(buf,0,SECTOR_SIZE);
+        memset(buf,0,PG_SIZE);
     }
-    sys_free(buf);
-    sys_free(all_blocks);
+    mfree_page(PF_KERNEL, buf, 1);
+    mfree_page(PF_KERNEL, all_blocks, 1);
     return False;
 }
 
@@ -90,7 +90,7 @@ void dir_close(struct dir* dir){
         return;
     }
     inode_close(dir->inode);
-    sys_free(dir);
+    mfree_page(PF_KERNEL, dir, 1);
 }
 
 void create_dir_entry(char* filename,uint32_t inode_no,uint8_t file_type,struct dir_entry* p_de){

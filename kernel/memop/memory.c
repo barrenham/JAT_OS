@@ -238,7 +238,7 @@ void* malloc_page(enum pool_flags pf,uint32_t pg_cnt){
     uint32_t vaddr=(uint32_t)vaddr_start,cnt=pg_cnt;
     struct pool* mem_pool=pf&PF_KERNEL?&kernel_pool:&user_pool;
     while(cnt-->0){
-        void* page_phyaddr=palloc(&kernel_pool);
+        void* page_phyaddr=palloc(mem_pool);
         if(page_phyaddr==NULL){
             put_string("no more phyaddr left --malloc_page\n");
         }

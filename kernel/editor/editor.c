@@ -13,7 +13,7 @@
 #include "../include/interrupt.h"
 #include "../include/crypto.h"
 
-#define BUF_SIZE (70 * 1024)
+#define BUF_SIZE (20 * 4096)
 
 struct editor_buf
 {
@@ -52,8 +52,8 @@ static void update_pos(struct editor_buf *buf)
 void split_lines(struct editor_buf *buf)
 {
     buf->line_count = 0;
-    free(buf->line_offsets);
-    buf->line_offsets = malloc(sizeof(uint32_t) * 10000);
+    mfree_page(PF_KERNEL, buf->line_offsets, 1);
+    buf->line_offsets = get_kernel_pages(1);
     if (!buf->line_offsets)
     {
         printf("Failed to allocate memory for line offsets.\n");
@@ -65,7 +65,7 @@ void split_lines(struct editor_buf *buf)
     {
         if (buf->content[i] == '\n')
         {
-            if (buf->line_count < 10000)
+            if (buf->line_count < 1000)
             {
                 buf->line_offsets[buf->line_count++] = i + 1;
                 current_line_length = 0;
@@ -81,7 +81,7 @@ void split_lines(struct editor_buf *buf)
             current_line_length++;
             if (current_line_length >= 80)
             {
-                if (buf->line_count < 10000)
+                if (buf->line_count < 1000)
                 {
                     buf->line_offsets[buf->line_count++] = i + 1;
                     current_line_length = 0;
@@ -267,7 +267,7 @@ void editor_main(const char *filename)
     clean_screen();
     console_release();
     struct editor_buf buf;
-    buf.content = malloc(BUF_SIZE);
+    buf.content = get_kernel_pages(20);
     if (buf.content == NULL)
         return;
     memset(buf.content, 0, BUF_SIZE);
@@ -311,7 +311,7 @@ void editor_main(const char *filename)
         }
         int fd_keys = openFile("/keys", O_RDONLY);
         int size = getfilesize(fd_keys);
-        char *keys_buf = malloc(size);
+        char *keys_buf = get_kernel_pages(1);
         seekp(fd_keys, 0, SEEK_SET);
         int j = 0;
         read(fd_keys, keys_buf, size);
@@ -325,7 +325,7 @@ void editor_main(const char *filename)
             printf("Invalid key\n\n");
             closeFile(fd);
             closeFile(fd_keys);
-            free(keys_buf);
+            mfree_page(PF_KERNEL, keys_buf, 1);
             return;
         }
         closeFile(fd_keys);
@@ -335,7 +335,7 @@ void editor_main(const char *filename)
     closeFile(fd);
     if (buf.size > 0 && buf.content[buf.size - 1] == '\0')
         buf.size--;
-    buf.line_offsets = malloc(sizeof(uint32_t) * 10000);
+    buf.line_offsets = get_kernel_pages(1);
     split_lines(&buf);
     buf.display_start_line = 0;
     buf.display_end_line = buf.line_count > 22 ? 22 : buf.line_count;
@@ -391,8 +391,8 @@ void editor_main(const char *filename)
                 clean_screen();
                 set_cursor(0);
                 console_release();
-                free(buf.line_offsets);
-                free(buf.content);
+                mfree_page(PF_KERNEL, buf.line_offsets, 1);
+                mfree_page(PF_KERNEL, buf.content, 20);
                 return;
             }
             else if (c == 'q')
@@ -401,8 +401,8 @@ void editor_main(const char *filename)
                 clean_screen();
                 set_cursor(0);
                 console_release();
-                free(buf.line_offsets);
-                free(buf.content);
+                mfree_page(PF_KERNEL, buf.line_offsets, 1);
+                mfree_page(PF_KERNEL, buf.content, 10);
                 return;
             }
             else if (c == ((char)0x80))
