@@ -166,6 +166,11 @@ p_mode_start:
     mov ebx,    KERNEL_BIN_BASE_ADDR
     mov ecx,    255
     call        rd_disk_mem
+    add eax,    ecx
+    shl ecx,    9
+    add ebx,    ecx
+    mov ecx,    45
+    call        rd_disk_mem
 
     call        setup_page
 
@@ -263,6 +268,7 @@ mem_cpy:
 ;impact:    通过LBA地址将特定扇区数的数据从主硬盘传入内存指定位置中
 ;tip:       cx 需要小于0x007F
 rd_disk_mem:
+    pushad
     mov esi,    eax
     mov di,     cx      ;保存传入的参数值
     mov dx,     1F2h    ;向磁盘控制器传递需要的扇区个数
@@ -321,6 +327,7 @@ rd_disk_mem:
 
     mov eax,    esi
     mov cx,     di
+    popad
     ret
 
 setup_page:

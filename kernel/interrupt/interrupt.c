@@ -87,8 +87,8 @@ general_intr_handler(uint8_t vec_nr)
         if(page_fault_vaddr>=0xC0000000){
             ;
         }else{
-            get_a_page(PF_USER,page_fault_vaddr);
-            return;
+            //get_a_page(PF_USER,page_fault_vaddr);
+            //return;
         }
     }
     put_string("\n!!! exception message end !!!\n");
