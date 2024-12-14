@@ -43,7 +43,7 @@ int bitmap_scan(struct bitmap* btmp,uint32_t cnt){
 
     bit_idx_start=-1;
     while(bit_left-->0){
-        if(!(bitmap_scan_test(btmp,next_bit))){
+        if((bitmap_scan_test(btmp,next_bit))==0){
             count++;
         }else{
             count=0;
@@ -62,7 +62,6 @@ void bitmap_set(struct bitmap* btmp,uint32_t bit_idx,int8_t value){
     ASSERT((value==0)||(value==1));
     uint32_t byte_idx=bit_idx/8;
     uint32_t bit_odd= bit_idx%8;
-
     if(value){
         btmp->bits[byte_idx]|=(BITMAP_MASK<<bit_odd);
     }else{

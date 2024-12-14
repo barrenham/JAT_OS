@@ -274,11 +274,11 @@ void* get_a_page(int pf,uint32_t vaddr){
     lock_acquire(&mem_pool->lock);
     struct task_struct* cur=running_thread();
     int32_t bit_idx=-1;
-    if(cur->pgdir!=NULL&&pf==PF_USER){
+    if(pf==PF_USER){
         bit_idx=(vaddr-cur->userprog_vaddr.vaddr_start)/PG_SIZE;
         ASSERT(bit_idx>0);
         bitmap_set(&cur->userprog_vaddr.vaddr_bitmap,bit_idx,1);
-    }else if(cur->pgdir==NULL&&pf==PF_KERNEL){
+    }else if(pf==PF_KERNEL){
         bit_idx=(vaddr-kernel_vaddr.vaddr_start)/PG_SIZE;
         ASSERT(bit_idx>0);
         bitmap_set(&kernel_vaddr.vaddr_bitmap,bit_idx,1);
@@ -297,6 +297,10 @@ void* get_a_page(int pf,uint32_t vaddr){
 }
 
 uint32_t addr_v2p(uint32_t vaddr){
+    uint32_t* pde=pde_ptr(vaddr);
+    if(((*pde)&0xfffff000)==0){
+        return 0;
+    }
     uint32_t* pte=pte_ptr(vaddr);
     return (((*pte)&0xfffff000)+(vaddr&0x00000fff));
 }

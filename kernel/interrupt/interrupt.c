@@ -84,6 +84,12 @@ general_intr_handler(uint8_t vec_nr)
         asm volatile("movl %%cr2, %0":"=r"(page_fault_vaddr));
         put_string("\npage fault addr is ");
         put_int(page_fault_vaddr);
+        put_char('\n');
+        put_string("eip:");
+        put_int(stack->eip);
+        put_char(' ');
+        put_string("ebp:");
+        put_int(stack->ebp);
         if(page_fault_vaddr>=0xC0000000){
             ;
         }else{

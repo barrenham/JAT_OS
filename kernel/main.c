@@ -56,7 +56,7 @@ int main(void) {
 		uint32_t sec_cnt=DIV_ROUND_UP(file_size,512);
 		struct disk* sda=&channels[0].devices[0];
 		ide_read(sda,400,prog_buf,sec_cnt);
-		int32_t fd=sys_open("/1111",O_CREAT|O_RDWR);
+		int32_t fd=sys_open("/highP",O_CREAT|O_RDWR);
 		if(fd!=-1){
 			if(sys_write(fd,prog_buf,0,file_size)==-1){
 				printk("file write error!\n");

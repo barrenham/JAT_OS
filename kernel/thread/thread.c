@@ -270,16 +270,22 @@ void schedule(){
             list_remove(&cur->general_tag);
             if(cur->pgdir!=NULL){
                 struct virtual_addr* user_vaddr=&cur->userprog_vaddr;
-                void*  vaddr=(void*)USER_VADDR_START;
+                uint32_t  vaddr=(void*)USER_VADDR_START;
                 while((uint32_t)vaddr<(USER_STACK3_VADDR)+PG_SIZE){
-                    if(bitmap_scan_test(&user_vaddr->vaddr_bitmap,((uint32_t)vaddr-USER_VADDR_START)/PG_SIZE)){
+                    if(bitmap_scan_test(&user_vaddr->vaddr_bitmap,((uint32_t)vaddr-USER_VADDR_START)/PG_SIZE)==1){
+                        //put_int(vaddr);
                         uint32_t phyaddr=addr_v2p(vaddr);
-                        bitmap_set(get_phy_bitmap_ptr(&user_pool),(phyaddr-get_phy_addr_start(&user_pool))/PG_SIZE,0);
+                        //put_string("->");
+                        //put_int(phyaddr);
+                        if(phyaddr!=0){
+                            bitmap_set(get_phy_bitmap_ptr(&user_pool),(phyaddr-get_phy_addr_start(&user_pool))/PG_SIZE,0);
+                        }
                     }
                     vaddr+=0x1000;
                 }
             }
         }
+        
     }
     next->status=TASK_RUNNING;
     //ASSERT(next!=cur);
