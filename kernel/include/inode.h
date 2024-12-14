@@ -6,11 +6,16 @@
 #include "list.h"
 #include "ide.h"
 
+#define INODE_WRITE_DENY 0x1
+#define INODE_ENCRYPTED 0x2
+#define INODE_HASHED 0x4
+
 struct inode{
     uint32_t i_no;
     uint32_t i_size;
     uint32_t i_open_cnts;
-    bool write_deny;
+    // bool write_deny;
+    int flags;
 
     uint32_t i_sectors[13];
     struct list_elem inode_tag;

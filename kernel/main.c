@@ -41,6 +41,7 @@ int main(void) {
 	putchar('\n');
 	uint32_t ptr=0;
 	uint32_t read_cnt=0;
+	
 	while((read_cnt=sys_read(fd0,buf,ptr,0x200))!=-1){
 		ptr+=read_cnt;
 		for(int i=0;i<(read_cnt);i++){
@@ -51,23 +52,24 @@ int main(void) {
 	sys_close(fd0);
 	{
 		uint32_t file_size=100*512;
-		void* prog_buf=sys_malloc(file_size);
+		void* prog_buf=get_kernel_pages(25);
 		uint32_t sec_cnt=DIV_ROUND_UP(file_size,512);
 		struct disk* sda=&channels[0].devices[0];
 		ide_read(sda,400,prog_buf,sec_cnt);
-		int32_t fd=sys_open("/PC/PROGRAM",O_CREAT|O_RDWR);
+		int32_t fd=sys_open("/1111",O_CREAT|O_RDWR);
 		if(fd!=-1){
 			if(sys_write(fd,prog_buf,0,file_size)==-1){
 				printk("file write error!\n");
 			}
 		}
-		sys_free(prog_buf);
+		mfree_page(PF_KERNEL, prog_buf, 25);
 		closeFile(fd);
 	}
+	
 	thread_start("thread_cleaner",FIRST_PRIO,thread_cleaner,NULL);
 	//process_execute(u_prog_a, "u_prog_a");
 	//process_execute(u_prog_c, "test_write_file");
-	process_execute(u_prog_b, "u_lazy"); 
+	// process_execute(u_prog_b, "u_lazy"); 
 	/*
 	thread_start("k_thread_a", FIRST_PRIO, k_thread_a, "argA ");
 	thread_start("k_thread_b", FIRST_PRIO, k_thread_b, "argB ");  

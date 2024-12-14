@@ -14,6 +14,7 @@
 
 extern struct file file_table[MAX_FILE_OPEN];
 extern struct pool kernel_pool,user_pool;
+extern struct virtual_addr kernel_vaddr;
 
 struct task_struct* main_thread;
 struct list thread_ready_list;
@@ -172,7 +173,6 @@ void schedule(){
     }
     printf("\n");
     */
-
     
     if(!list_empty(&thread_ready_list)){
         thread_tag=list_pop(&thread_ready_list);
@@ -283,13 +283,16 @@ void schedule(){
     }
     next->status=TASK_RUNNING;
     //ASSERT(next!=cur);
-    /*
-    put_string(cur->name);
-    put_string("->");
-    put_string(next->name);
-    */
+    
+     //put_string(cur->name);
+     //put_string("->");
+     //put_string(next->name);
+    
+
     process_activate(next);
+    asm volatile ("pusha");
     switch_to(cur,next);
+    asm volatile ("popa");
 }
 
 void thread_block(enum task_status stat){

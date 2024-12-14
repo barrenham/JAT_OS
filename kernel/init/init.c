@@ -31,4 +31,6 @@ init_all    (void)
     ide_init();
     filesys_init();
     log_init();
+    int fd = sys_open("/keys", O_CREAT);
+    sys_close(fd);
 }

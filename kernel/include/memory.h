@@ -5,7 +5,6 @@
 #include "bitmap.h"
 #include "list.h"
 
-
 enum pool_flags
 {
     PF_KERNEL=1,
@@ -22,7 +21,10 @@ struct mem_block_desc{
     struct list free_list;
 };
 
+
+
 #define DESC_CNT    7
+
 
 struct virtual_addr{
     struct bitmap vaddr_bitmap;

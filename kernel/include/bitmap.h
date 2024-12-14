@@ -11,6 +11,7 @@ struct bitmap{
     uint32_t btmp_bytes_len;
 };
 
+
 void bitmap_init(struct bitmap* btmp);
 
 

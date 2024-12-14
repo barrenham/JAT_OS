@@ -23,6 +23,8 @@ extern struct list thread_all_list;
 extern struct list thread_ready_second_list;
 extern struct list thread_ready_third_list;
 extern struct file file_table[MAX_FILE_OPEN];
+extern struct pool kernel_pool,user_pool;
+extern struct virtual_addr kernel_vaddr;
 
 void
 fork_start_process(void* filename_,void* eip,void* esp){
@@ -56,6 +58,7 @@ start_process(void* filename_){
     #ifndef TEST_PRINT
         put_string(filename_);
     #endif
+    intr_disable();
     void* function=filename_;
     struct task_struct* cur=running_thread();
     cur->self_kstack+=sizeof(struct thread_stack);
@@ -71,6 +74,7 @@ start_process(void* filename_){
     proc_stack->eflags=(EFLAGS_IOPL_0|EFLAGS_MBS|EFLAGS_IF_1);
     proc_stack->esp=(void*)((uint32_t)(tmp)+PG_SIZE);
     proc_stack->ss=SELECTOR_U_DATA;
+    intr_enable();
     asm volatile("movl %0,%%esp;"
                 : 
                 :"g"(proc_stack)
@@ -80,13 +84,27 @@ start_process(void* filename_){
 
 void page_dir_activate(struct task_struct* p_thread){
     uint32_t pagedir_phy_addr=KERNEL_PAGE_DIR;
+    // put_int(p_thread->pgdir);
     if(p_thread->pgdir!=NULL){
         pagedir_phy_addr=addr_v2p((uint32_t)p_thread->pgdir);
+        /*
+        for (int i = 0; i < 1024; i++)
+             put_int(*((uint32_t*)p_thread->pgdir + i));
+        */
+        //put_int(*(uint32_t*)0xF0F0F0F0F0);
     }
-    asm volatile("movl %0,%%cr3"
+    // put_int(pagedir_phy_addr);
+    
+    // put_int(pagedir_phy_addr);
+    asm volatile("movl %0,%%cr3; jmp flush;flush:nop"
                 :
                 :"r"(pagedir_phy_addr)
                 :"memory");
+    // if (p_thread->pgdir != NULL)
+    // {
+    //     put_int(pagedir_phy_addr);
+    //     while (1);
+    // }
 }
 
 void process_activate(struct task_struct* p_thread){
@@ -99,7 +117,10 @@ void process_activate(struct task_struct* p_thread){
 }
 
 uint32_t* create_page_dir(void){
-    uint32_t* page_dir_vaddr=get_kernel_pages(1);
+    static uint32_t pg_ptr=0xE0000000;
+    uint32_t* page_dir_vaddr=get_a_page(PF_KERNEL,pg_ptr);
+    pg_ptr+=0x1000;
+    memset(page_dir_vaddr,0,PG_SIZE);
     if(page_dir_vaddr==NULL){
         console_put_string("create_page_dir: get_kernel_page failed!\n");
         return NULL;
@@ -107,11 +128,16 @@ uint32_t* create_page_dir(void){
     memcpy((uint32_t*)((uint32_t)page_dir_vaddr),\
           (uint32_t*)(0xfffff000),\
           4);
+    // put_int((uint32_t)*page_dir_vaddr);
     memcpy((uint32_t*)((uint32_t)page_dir_vaddr+0x300*4),\
           (uint32_t*)(0xfffff000+0x300*4),\
           1024);
     uint32_t new_page_dir_phy_addr=addr_v2p((uint32_t)page_dir_vaddr);
     page_dir_vaddr[1023]=new_page_dir_phy_addr|PG_US_U|PG_RW_W|PG_P_1;
+    asm volatile("invlpg %0"
+    :
+    :"m"(page_dir_vaddr)
+    :"memory");
     #ifndef TEST_PRINT
     for(int i=0;i<1024;i++){
         put_int(page_dir_vaddr[i]);
@@ -151,6 +177,8 @@ void process_execute(void* filename,char* name){
     create_user_vaddr_bitmap(thread);
     thread_create(thread,start_process,filename);
     thread->pgdir=create_page_dir();
+    // for (int i = 0; i < 1024; i++)
+    //     put_int(thread->pgdir[i]);
     block_desc_init(thread->u_block_desc);
     //put_int(&thread_ready_list);
     struct list_elem* elem=thread_ready_list.head.next;

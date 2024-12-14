@@ -3,6 +3,7 @@
 
 #include "list.h"
 #include "stdint.h"
+#include "bitmap.h"
 #include "thread.h"
 
 #ifndef __SEMA_THREAD_SYNC_H
@@ -13,11 +14,14 @@
     };
 #endif
 
+
 struct lock{
     struct task_struct* holder;
     struct semaphore semaphore;
     uint32_t holder_repeat_nr;
 };
+
+
 
 void sema_init(struct semaphore* psema,uint8_t value);
 
